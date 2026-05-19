@@ -4,83 +4,116 @@ struct FilmCanisterView: View {
     let filmStock: String
     let frameCount: Int
 
+    private let labelColor = Color(hex: "#27272A")
+    private let stripTextColor = Color(hex: "#FAFAFA")
+
     var body: some View {
-        GeometryReader { geo in
-            let side = min(geo.size.width, geo.size.height)
-            ZStack {
-                photoBackdrop(side: side)
-                canister(side: side)
-            }
-            .frame(width: geo.size.width, height: geo.size.height)
+        ZStack {
+            photoBackdrop
+            canister
         }
-        .aspectRatio(1, contentMode: .fit)
+        .frame(width: 160, height: 180)
     }
 
-    private func labelText(w: CGFloat, h: CGFloat) -> some View {
-        // Force two-line layout by replacing the first space with a newline,
-        // so "KODACOLOR 200" lays out as "KODACOLOR" / "200" instead of being
-        // broken mid-word at the frame edge.
-        let display = filmStock.replacingOccurrences(of: " ", with: "\n", options: [], range: filmStock.range(of: " "))
-        return Text(display)
-            .font(.system(size: w * 0.18, weight: .bold))
-            .foregroundStyle(.black)
-            .multilineTextAlignment(.center)
-            .lineLimit(2)
-            .lineSpacing(-w * 0.03)
-            .minimumScaleFactor(0.45)
-            .allowsTightening(true)
-            .frame(width: w * 0.48)
-            .position(x: w * 0.66, y: h * 0.5)
-    }
+    private static let canisterWidth: CGFloat = 112
+    private static let canisterHeight: CGFloat = 160
 
-    private func canister(side: CGFloat) -> some View {
+    private var canister: some View {
         Image("FilmCanister")
             .resizable()
             .aspectRatio(contentMode: .fit)
-            .frame(width: side * 0.78)
-            .overlay(
-                GeometryReader { imgGeo in
-                    let w = imgGeo.size.width
-                    let h = imgGeo.size.height
-
-                    ZStack {
-                        labelText(w: w, h: h)
-
-                        // Vertical "35mm | XXEXP" — placed near the left edge
-                        // of the white label, inside the label area
-                        Text("35mm | \(frameCount)EXP")
-                            .font(.system(size: w * 0.072, weight: .semibold))
-                            .foregroundStyle(.black)
-                            .fixedSize()
-                            .rotationEffect(.degrees(-90))
-                            .position(x: w * 0.475, y: h * 0.5)
-                    }
-                }
-            )
-            .shadow(color: .black.opacity(0.18), radius: 6, x: 0, y: 4)
+            .frame(width: Self.canisterWidth, height: Self.canisterHeight)
+            .overlay(canisterTextOverlay)
+            .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 3)
     }
 
-    private func photoBackdrop(side: CGFloat) -> some View {
-        ZStack {
-            photoPrint(width: side * 0.52, height: side * 0.68, palette: .sky)
-                .rotationEffect(.degrees(-14))
-                .offset(x: -side * 0.16, y: -side * 0.08)
+    private var canisterTextOverlay: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
 
-            photoPrint(width: side * 0.48, height: side * 0.62, palette: .shadow)
-                .rotationEffect(.degrees(9))
-                .offset(x: side * 0.18, y: -side * 0.12)
+            ZStack {
+                // Film name — 2 lines, dynamic size, on white label
+                labelText
+                    .frame(width: w * 0.46)
+                    .position(x: w * 0.66, y: h * 0.5)
+
+                // 35mm | XXEXP — centered on the LEFT BLACK canister edge.
+                // y is offset to ~0.53 because the canister has a black cap
+                // at the top, so the body's true vertical center sits below
+                // the image's geometric center.
+                Text("35mm | \(frameCount)EXP")
+                    .font(.pretendard(.medium, size: 10))
+                    .foregroundStyle(stripTextColor)
+                    .fixedSize()
+                    .rotationEffect(.degrees(-90))
+                    .position(x: w * 0.305, y: h * 0.53)
+            }
         }
     }
 
-    private enum Palette { case sky, shadow }
+    private var labelText: some View {
+        let parts = filmStock.split(separator: " ", maxSplits: 1).map(String.init)
+        let firstLine = parts.first ?? filmStock
+        let secondLine = parts.count > 1 ? parts[1] : ""
 
-    private func photoPrint(width: CGFloat, height: CGFloat, palette: Palette) -> some View {
+        return VStack(spacing: 0) {
+            Text(firstLine)
+            Text(secondLine)
+        }
+        .font(.pretendard(.bold, size: dynamicLabelSize))
+        .foregroundStyle(labelColor)
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+    }
+
+    private var dynamicLabelSize: CGFloat {
+        // Size 12-14 based on longest word in the film stock name
+        let longestWord = filmStock
+            .split(separator: " ")
+            .map(\.count)
+            .max() ?? filmStock.count
+        switch longestWord {
+        case ...5: return 14
+        case 6...7: return 13
+        default: return 12
+        }
+    }
+
+    private var photoBackdrop: some View {
+        let photoSize = CGSize(width: 72, height: 100)
+        return ZStack {
+            photoPrint(palette: .sky)
+                .frame(width: photoSize.width, height: photoSize.height)
+                .rotationEffect(.degrees(-14))
+                .offset(x: -28, y: -34)
+
+            photoPrint(palette: .dusk)
+                .frame(width: photoSize.width, height: photoSize.height)
+                .rotationEffect(.degrees(-2))
+                .offset(x: 0, y: -42)
+
+            photoPrint(palette: .shadow)
+                .frame(width: photoSize.width, height: photoSize.height)
+                .rotationEffect(.degrees(12))
+                .offset(x: 30, y: -34)
+        }
+    }
+
+    private enum Palette { case sky, dusk, shadow }
+
+    private func photoPrint(palette: Palette) -> some View {
         let colors: [Color] = {
             switch palette {
             case .sky:
                 return [
-                    Color(red: 0.62, green: 0.74, blue: 0.84),
-                    Color(red: 0.40, green: 0.52, blue: 0.62)
+                    Color(red: 0.66, green: 0.78, blue: 0.86),
+                    Color(red: 0.42, green: 0.54, blue: 0.64)
+                ]
+            case .dusk:
+                return [
+                    Color(red: 0.45, green: 0.50, blue: 0.58),
+                    Color(red: 0.25, green: 0.30, blue: 0.36)
                 ]
             case .shadow:
                 return [
@@ -90,30 +123,25 @@ struct FilmCanisterView: View {
             }
         }()
 
-        return RoundedRectangle(cornerRadius: 5, style: .continuous)
+        return RoundedRectangle(cornerRadius: 4, style: .continuous)
             .fill(LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom))
-            .frame(width: width, height: height)
             .overlay(
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .stroke(Color.black.opacity(0.9), lineWidth: 2.5)
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .stroke(Color.black.opacity(0.9), lineWidth: 2)
             )
-            .shadow(color: .black.opacity(0.18), radius: 4, x: 0, y: 3)
+            .shadow(color: .black.opacity(0.15), radius: 3, x: 0, y: 2)
     }
 }
 
 #Preview {
-    VStack {
+    VStack(spacing: 24) {
         HStack(spacing: 16) {
             FilmCanisterView(filmStock: "Portra 400", frameCount: 17)
-                .frame(width: 160, height: 160)
             FilmCanisterView(filmStock: "UltraMax 400", frameCount: 36)
-                .frame(width: 160, height: 160)
         }
         HStack(spacing: 16) {
             FilmCanisterView(filmStock: "ProImage 100", frameCount: 35)
-                .frame(width: 160, height: 160)
             FilmCanisterView(filmStock: "KODACOLOR 200", frameCount: 37)
-                .frame(width: 160, height: 160)
         }
     }
     .padding()

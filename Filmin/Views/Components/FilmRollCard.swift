@@ -4,19 +4,18 @@ struct FilmRollCard: View {
     let roll: FilmRoll
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: 6) {
             FilmCanisterView(filmStock: roll.filmStock, frameCount: roll.frameCount)
                 .frame(maxWidth: .infinity)
-                .padding(.bottom, 4)
 
             HStack(spacing: 6) {
                 Text(roll.title)
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.pretendard(.bold, size: 17))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 Text("\(roll.frameCount)")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.pretendard(.semiBold, size: 12))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
@@ -26,15 +25,16 @@ struct FilmRollCard: View {
                     )
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(spacing: 2) {
                 Text(roll.filmStock)
-                    .font(.system(size: 14))
+                    .font(.pretendard(.regular, size: 14))
                     .foregroundStyle(.secondary)
                 Text(roll.camera)
-                    .font(.system(size: 14))
+                    .font(.pretendard(.regular, size: 14))
                     .foregroundStyle(.secondary)
             }
         }
+        .frame(maxWidth: .infinity)
     }
 }
 

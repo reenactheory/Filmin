@@ -43,10 +43,10 @@ struct MyFilmsView: View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("My Films")
-                    .font(.system(size: 34, weight: .bold))
+                    .font(.pretendard(.bold, size: 34))
                     .foregroundStyle(.primary)
                 Text("총 \(rolls.count)롤")
-                    .font(.system(size: 16))
+                    .font(.pretendard(.regular, size: 16))
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -71,6 +71,7 @@ struct MyFilmsView: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
                 TextField("Search", text: $searchText)
+                    .font(.pretendard(.regular, size: 16))
                     .textFieldStyle(.plain)
                     .autocorrectionDisabled()
             }
