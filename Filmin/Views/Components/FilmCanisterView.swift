@@ -15,8 +15,8 @@ struct FilmCanisterView: View {
         .frame(width: 160, height: 180)
     }
 
-    private static let canisterWidth: CGFloat = 112
-    private static let canisterHeight: CGFloat = 160
+    private static let canisterWidth: CGFloat = 120
+    private static let canisterHeight: CGFloat = 175
 
     private var canister: some View {
         Image("FilmCanister")
@@ -33,51 +33,103 @@ struct FilmCanisterView: View {
             let h = geo.size.height
 
             ZStack {
-                // Film name — 2 lines, dynamic size, on white label
+                // Film name on white label area.
+                // Box top-left anchored at (57, 48.85), width 46 (right edge 103),
+                // height 107. Position places the frame center, so
+                //   center = (57 + 46/2, 48.85 + 107/2) = (80, 102.35).
                 labelText
-                    .frame(width: w * 0.46)
-                    .position(x: w * 0.66, y: h * 0.5)
+                    .position(x: 80, y: 102.35)
 
-                // 35mm | XXEXP — centered on the LEFT BLACK canister edge.
-                // y is offset to ~0.53 because the canister has a black cap
-                // at the top, so the body's true vertical center sits below
-                // the image's geometric center.
+                // 35mm | XXEXP — design spec spacing scaled to 120x175:
+                //   top 72.02, left 37.5, bottom 44.95 (from 65.85/35/41.09 @ 112x160)
+                //   x = 37.5 + halfRotatedWidth(~7) - 2 (user nudge) = 42.5
+                //   y = (72.02 + (175 - 44.95)) / 2 = 101.04
                 Text("35mm | \(frameCount)EXP")
-                    .font(.pretendard(.medium, size: 10))
+                    .font(.pretendard(.medium, size: 11))
                     .foregroundStyle(stripTextColor)
                     .fixedSize()
                     .rotationEffect(.degrees(-90))
-                    .position(x: w * 0.305, y: h * 0.53)
+                    .position(x: 42.5, y: 101.04)
             }
         }
     }
 
     private var labelText: some View {
-        let parts = filmStock.split(separator: " ", maxSplits: 1).map(String.init)
-        let firstLine = parts.first ?? filmStock
-        let secondLine = parts.count > 1 ? parts[1] : ""
+        let layout = labelLayout
+        let longestBrand = layout.brand.map(\.count).max() ?? 0
+        let suffixSize: CGFloat = {
+            switch longestBrand {
+            case ...5: return 15
+            case 6...7: return 14
+            default: return 13
+            }
+        }()
+        let isSplit = layout.brand.count > 1
+        // Split brand parts ride a touch smaller so they read as one
+        // compound word broken across lines instead of separate words.
+        let brandSize: CGFloat = isSplit ? max(11, suffixSize - 2) : suffixSize
 
-        return VStack(spacing: 0) {
-            Text(firstLine)
-            Text(secondLine)
+        return VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: isSplit ? -2 : 0) {
+                ForEach(layout.brand.indices, id: \.self) { idx in
+                    Text(layout.brand[idx])
+                        .font(.pretendard(.bold, size: brandSize))
+                }
+            }
+
+            if let suffix = layout.suffix {
+                Text(suffix)
+                    .font(.pretendard(.bold, size: suffixSize))
+            }
         }
-        .font(.pretendard(.bold, size: dynamicLabelSize))
-        .foregroundStyle(labelColor)
         .lineLimit(1)
-        .minimumScaleFactor(0.7)
+        .minimumScaleFactor(0.5)
+        .foregroundStyle(labelColor)
+        .frame(width: 46, alignment: .leading)
+        .padding(.top, 6)
+        .frame(width: 46, height: 107, alignment: .topLeading)
     }
 
-    private var dynamicLabelSize: CGFloat {
-        // Size 12-14 based on longest word in the film stock name
-        let longestWord = filmStock
-            .split(separator: " ")
-            .map(\.count)
-            .max() ?? filmStock.count
-        switch longestWord {
-        case ...5: return 14
-        case 6...7: return 13
-        default: return 12
+    private struct LabelLayout {
+        let brand: [String]
+        let suffix: String?
+    }
+
+    /// Split the film stock into brand parts + suffix (the ISO number).
+    /// Examples:
+    ///   "Portra 400"      → brand: ["Portra"],       suffix: "400"
+    ///   "UltraMax 400"    → brand: ["Ultra", "Max"], suffix: "400"
+    ///   "KODACOLOR 200"   → brand: ["KODA", "COLOR"],suffix: "200"
+    private var labelLayout: LabelLayout {
+        let words = filmStock.split(separator: " ").map(String.init)
+        let brand = words.first ?? filmStock
+        let suffix = words.count > 1 ? words[1] : nil
+
+        let brandParts = Self.knownWordSplits[brand] ?? Self.splitCamelCase(brand)
+        return LabelLayout(brand: brandParts, suffix: suffix)
+    }
+
+    /// All-caps brand words that don't have a camelCase boundary;
+    /// add entries as more film stocks are introduced.
+    private static let knownWordSplits: [String: [String]] = [
+        "KODACOLOR": ["KODA", "COLOR"]
+    ]
+
+    private static func splitCamelCase(_ s: String) -> [String] {
+        var result: [String] = []
+        var current = ""
+        for (i, ch) in s.enumerated() {
+            if i > 0, ch.isUppercase {
+                let prevIdx = s.index(s.startIndex, offsetBy: i - 1)
+                if s[prevIdx].isLowercase {
+                    result.append(current)
+                    current = ""
+                }
+            }
+            current.append(ch)
         }
+        if !current.isEmpty { result.append(current) }
+        return result
     }
 
     private var photoBackdrop: some View {
@@ -125,11 +177,7 @@ struct FilmCanisterView: View {
 
         return RoundedRectangle(cornerRadius: 4, style: .continuous)
             .fill(LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom))
-            .overlay(
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .stroke(Color.black.opacity(0.9), lineWidth: 2)
-            )
-            .shadow(color: .black.opacity(0.15), radius: 3, x: 0, y: 2)
+            .shadow(color: .black.opacity(0.22), radius: 8, x: 0, y: 4)
     }
 }
 

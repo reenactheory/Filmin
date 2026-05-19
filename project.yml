@@ -2,7 +2,7 @@ name: Filmin
 options:
   bundleIdPrefix: com.reenactheory
   deploymentTarget:
-    iOS: "17.0"
+    iOS: "18.0"
   developmentLanguage: ko
   createIntermediateGroups: true
 settings:

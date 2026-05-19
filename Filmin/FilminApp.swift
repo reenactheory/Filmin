@@ -4,7 +4,7 @@ import SwiftUI
 struct FilminApp: App {
     var body: some Scene {
         WindowGroup {
-            MyFilmsView()
+            RootTabView()
         }
     }
 }

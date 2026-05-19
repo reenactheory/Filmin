@@ -5,7 +5,7 @@ struct FilmRollCard: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            FilmCanisterView(filmStock: roll.filmStock, frameCount: roll.frameCount)
+            FilmCanisterView(filmStock: roll.filmStock, frameCount: roll.photoCount)
                 .frame(maxWidth: .infinity)
 
             HStack(spacing: 6) {
@@ -14,7 +14,7 @@ struct FilmRollCard: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
-                Text("\(roll.frameCount)")
+                Text("\(roll.photoCount)")
                     .font(.pretendard(.semiBold, size: 12))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
@@ -27,10 +27,10 @@ struct FilmRollCard: View {
 
             VStack(spacing: 2) {
                 Text(roll.filmStock)
-                    .font(.pretendard(.regular, size: 14))
+                    .font(.pretendard(.semiBold, size: 14))
                     .foregroundStyle(.secondary)
                 Text(roll.camera)
-                    .font(.pretendard(.regular, size: 14))
+                    .font(.pretendard(.semiBold, size: 14))
                     .foregroundStyle(.secondary)
             }
         }

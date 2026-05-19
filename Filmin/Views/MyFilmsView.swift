@@ -1,8 +1,16 @@
 import SwiftUI
 
+enum RollSortOrder: String, CaseIterable, Identifiable {
+    case recent = "최신 순"
+    case oldest = "오래된 순"
+
+    var id: Self { self }
+}
+
 struct MyFilmsView: View {
     @State private var rolls: [FilmRoll] = FilmRoll.samples
     @State private var searchText: String = ""
+    @State private var sortOrder: RollSortOrder = .recent
 
     private let columns = [
         GridItem(.flexible(), spacing: 20),
@@ -10,8 +18,14 @@ struct MyFilmsView: View {
     ]
 
     private var filteredRolls: [FilmRoll] {
-        guard !searchText.isEmpty else { return rolls }
-        return rolls.filter {
+        let sorted: [FilmRoll]
+        switch sortOrder {
+        case .recent: sorted = rolls
+        case .oldest: sorted = rolls.reversed()
+        }
+
+        guard !searchText.isEmpty else { return sorted }
+        return sorted.filter {
             $0.title.localizedCaseInsensitiveContains(searchText)
                 || $0.filmStock.localizedCaseInsensitiveContains(searchText)
                 || $0.camera.localizedCaseInsensitiveContains(searchText)
@@ -25,6 +39,7 @@ struct MyFilmsView: View {
                     header
                     searchBar
                     grid
+                        .padding(.top, 20)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 8)
@@ -82,8 +97,12 @@ struct MyFilmsView: View {
                     .fill(Color(.systemGray6))
             )
 
-            Button {
-                // Filter action
+            Menu {
+                Picker("정렬", selection: $sortOrder) {
+                    ForEach(RollSortOrder.allCases) { order in
+                        Text(order.rawValue).tag(order)
+                    }
+                }
             } label: {
                 Image(systemName: "line.3.horizontal.decrease")
                     .font(.system(size: 18, weight: .medium))
@@ -94,7 +113,7 @@ struct MyFilmsView: View {
     }
 
     private var grid: some View {
-        LazyVGrid(columns: columns, spacing: 28) {
+        LazyVGrid(columns: columns, spacing: 40) {
             ForEach(filteredRolls) { roll in
                 FilmRollCard(roll: roll)
             }
