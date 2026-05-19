@@ -14,6 +14,13 @@ struct RootTabView: View {
             Tab("설정", systemImage: "gearshape") {
                 PlaceholderView(title: "설정", icon: "gearshape")
             }
+
+            // role: .search makes this render as a separate circular
+            // glass button on the right of the tab pill (iOS 26 pattern,
+            // same as Apple Music's search button).
+            Tab("새 롤", systemImage: "plus", role: .search) {
+                PlaceholderView(title: "새 롤 추가", icon: "plus.circle")
+            }
         }
     }
 }

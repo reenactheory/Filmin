@@ -33,24 +33,18 @@ struct MyFilmsView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    header
-                    searchBar
-                    grid
-                        .padding(.top, 20)
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 8)
-                .padding(.bottom, 100)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                header
+                searchBar
+                grid
+                    .padding(.top, 20)
             }
-            .background(Color.white)
-
-            addButton
-                .padding(.trailing, 24)
-                .padding(.bottom, 28)
+            .padding(.horizontal, 24)
+            .padding(.top, 8)
+            .padding(.bottom, 100)
         }
+        .background(Color.white)
         .ignoresSafeArea(.keyboard)
     }
 
@@ -120,21 +114,6 @@ struct MyFilmsView: View {
         }
     }
 
-    private var addButton: some View {
-        Button {
-            // Add new roll
-        } label: {
-            Image(systemName: "plus")
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 60, height: 60)
-                .background(
-                    Circle()
-                        .fill(Color.black)
-                        .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
-                )
-        }
-    }
 }
 
 #Preview {
