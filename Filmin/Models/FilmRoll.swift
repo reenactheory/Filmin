@@ -64,7 +64,9 @@ extension FilmRoll {
     static let samples: [FilmRoll] = [
         .init(title: "Jeju", filmStock: "Portra 400", camera: "Leica R3",
               photos: Array(repeating: "", count: 17),
-              brand: "Kodak"),
+              brand: "Kodak",
+              location: "엘리카메라에서",
+              developedAt: dateFromString("2025-03-15")),
         .init(title: "홍콩 & 삿포로", filmStock: "UltraMax 400", camera: "Leica R3",
               photos: Array(repeating: "", count: 36),
               brand: "Kodak",
@@ -72,16 +74,24 @@ extension FilmRoll {
               developedAt: dateFromString("2025-04-12")),
         .init(title: "한강 테스트롤", filmStock: "ProImage 100", camera: "Leica AF-C1",
               photos: Array(repeating: "", count: 35),
-              brand: "Kodak"),
+              brand: "Kodak",
+              location: "엘리카메라에서",
+              developedAt: dateFromString("2025-02-20")),
         .init(title: "홍콩 & 삿포로", filmStock: "KODACOLOR 200", camera: "Leica M6",
               photos: Array(repeating: "", count: 37),
-              brand: "Kodak"),
+              brand: "Kodak",
+              location: "엘리카메라에서",
+              developedAt: dateFromString("2025-04-15")),
         .init(title: "도쿄 산책", filmStock: "Portra 800", camera: "Leica M6",
               photos: Array(repeating: "", count: 24),
-              brand: "Kodak"),
+              brand: "Kodak",
+              location: "엘리카메라에서",
+              developedAt: dateFromString("2025-01-20")),
         .init(title: "교토 가을", filmStock: "Ektar 100", camera: "Leica R3",
               photos: Array(repeating: "", count: 36),
-              brand: "Kodak")
+              brand: "Kodak",
+              location: "엘리카메라에서",
+              developedAt: dateFromString("2024-12-05"))
     ]
 
     private static func dateFromString(_ s: String) -> Date? {

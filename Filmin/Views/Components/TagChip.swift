@@ -5,12 +5,12 @@ struct TagChip: View {
 
     var body: some View {
         Text(text)
-            .font(.pretendard(.medium, size: 14))
-            .foregroundStyle(Color(hex: "#52525B"))
-            .padding(.horizontal, 14)
+            .font(.pretendard(.bold, size: 16))
+            .foregroundStyle(Color(hex: "#27272A"))
+            .padding(.horizontal, 18)
             .padding(.vertical, 7)
             .background(
-                Capsule()
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Color(.systemGray6))
             )
     }

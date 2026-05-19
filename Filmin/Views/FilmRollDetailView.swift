@@ -8,7 +8,7 @@ struct FilmRollDetailView: View {
     @State private var currentPhotoIndex: Int = 0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(spacing: 0) {
             titleBlock
                 .padding(.horizontal, 24)
                 .padding(.top, 8)
@@ -17,16 +17,16 @@ struct FilmRollDetailView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
 
+            Spacer(minLength: 40)
+
             filmStripPlaceholder
-                .padding(.top, 28)
 
             counterText
-                .padding(.top, 12)
+                .padding(.top, 16)
 
             viewAllButton
-                .padding(.top, 28)
-
-            Spacer(minLength: 0)
+                .padding(.top, 24)
+                .padding(.bottom, 32)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.white)
@@ -43,18 +43,24 @@ struct FilmRollDetailView: View {
     }
 
     private var titleBlock: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("나의 \(rollNumber)번째 롤")
-                .font(.pretendard(.regular, size: 18))
-                .foregroundStyle(.secondary)
+        VStack(spacing: 4) {
+            (
+                Text("나의 ").foregroundStyle(.secondary)
+                + Text("\(rollNumber)번째 롤").foregroundStyle(.primary)
+            )
+            .font(.pretendard(.bold, size: 28))
+            .multilineTextAlignment(.center)
+
             Text(roll.fullName)
                 .font(.pretendard(.bold, size: 28))
                 .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var tagChips: some View {
-        FlowLayout(horizontalSpacing: 8, verticalSpacing: 8) {
+        FlowLayout(horizontalSpacing: 8, verticalSpacing: 8, alignment: .center) {
             TagChip(text: "#\(roll.format)")
             TagChip(text: "#\(roll.camera)")
             if let iso = roll.iso {
@@ -70,21 +76,7 @@ struct FilmRollDetailView: View {
     }
 
     private var filmStripPlaceholder: some View {
-        // Placeholder for the film-strip photo viewer.
-        // Real implementation will use the roll's photos array.
-        ZStack {
-            Rectangle()
-                .fill(Color.black)
-            VStack(spacing: 8) {
-                Image(systemName: "photo")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.white.opacity(0.6))
-                Text("필름 사진")
-                    .font(.pretendard(.medium, size: 14))
-                    .foregroundStyle(.white.opacity(0.6))
-            }
-        }
-        .frame(height: 320)
+        FilmStripView(photos: roll.photos)
     }
 
     private var counterText: some View {
@@ -108,7 +100,10 @@ struct FilmRollDetailView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 28)
                     .padding(.vertical, 14)
-                    .background(Capsule().fill(Color.black))
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.black)
+                    )
             }
             Spacer()
         }
