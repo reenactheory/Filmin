@@ -33,19 +33,24 @@ struct MyFilmsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                header
-                searchBar
-                grid
-                    .padding(.top, 20)
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    header
+                    searchBar
+                    grid
+                        .padding(.top, 20)
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 8)
+                .padding(.bottom, 100)
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-            .padding(.bottom, 100)
+            .background(Color.white)
+            .ignoresSafeArea(.keyboard)
+            .navigationDestination(for: FilmRoll.self) { roll in
+                FilmRollDetailView(roll: roll, rollNumber: rollNumber(for: roll))
+            }
         }
-        .background(Color.white)
-        .ignoresSafeArea(.keyboard)
     }
 
     private var header: some View {
@@ -109,9 +114,16 @@ struct MyFilmsView: View {
     private var grid: some View {
         LazyVGrid(columns: columns, spacing: 40) {
             ForEach(filteredRolls) { roll in
-                FilmRollCard(roll: roll)
+                NavigationLink(value: roll) {
+                    FilmRollCard(roll: roll)
+                }
+                .buttonStyle(.plain)
             }
         }
+    }
+
+    private func rollNumber(for roll: FilmRoll) -> Int {
+        (rolls.firstIndex(of: roll) ?? 0) + 1
     }
 
 }
