@@ -22,6 +22,7 @@ struct RootTabView: View {
                 PlaceholderView(title: "새 롤 추가", icon: "plus.circle")
             }
         }
+        .tint(.black)
     }
 }
 
