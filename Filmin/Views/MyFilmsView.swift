@@ -1,0 +1,122 @@
+import SwiftUI
+
+struct MyFilmsView: View {
+    @State private var rolls: [FilmRoll] = FilmRoll.samples
+    @State private var searchText: String = ""
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 20),
+        GridItem(.flexible(), spacing: 20)
+    ]
+
+    private var filteredRolls: [FilmRoll] {
+        guard !searchText.isEmpty else { return rolls }
+        return rolls.filter {
+            $0.title.localizedCaseInsensitiveContains(searchText)
+                || $0.filmStock.localizedCaseInsensitiveContains(searchText)
+                || $0.camera.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    header
+                    searchBar
+                    grid
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 8)
+                .padding(.bottom, 100)
+            }
+            .background(Color.white)
+
+            addButton
+                .padding(.trailing, 24)
+                .padding(.bottom, 28)
+        }
+        .ignoresSafeArea(.keyboard)
+    }
+
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("My Films")
+                    .font(.system(size: 34, weight: .bold))
+                    .foregroundStyle(.primary)
+                Text("총 \(rolls.count)롤")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            profileAvatar
+        }
+    }
+
+    private var profileAvatar: some View {
+        Circle()
+            .fill(Color(.systemGray5))
+            .frame(width: 44, height: 44)
+            .overlay(
+                Image(systemName: "person.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.secondary)
+            )
+    }
+
+    private var searchBar: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .autocorrectionDisabled()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                Capsule()
+                    .fill(Color(.systemGray6))
+            )
+
+            Button {
+                // Filter action
+            } label: {
+                Image(systemName: "line.3.horizontal.decrease")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24, height: 24)
+            }
+        }
+    }
+
+    private var grid: some View {
+        LazyVGrid(columns: columns, spacing: 28) {
+            ForEach(filteredRolls) { roll in
+                FilmRollCard(roll: roll)
+            }
+        }
+    }
+
+    private var addButton: some View {
+        Button {
+            // Add new roll
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 60, height: 60)
+                .background(
+                    Circle()
+                        .fill(Color.black)
+                        .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
+                )
+        }
+    }
+}
+
+#Preview {
+    MyFilmsView()
+}
