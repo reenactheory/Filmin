@@ -6,12 +6,13 @@ struct FilmRollDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var currentPhotoIndex: Int = 0
+    @State private var showingGallery: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
             titleBlock
                 .padding(.horizontal, 24)
-                .padding(.top, 8)
+                .padding(.top, 18)
 
             tagChips
                 .padding(.horizontal, 24)
@@ -21,12 +22,16 @@ struct FilmRollDetailView: View {
 
             filmStripPlaceholder
 
+            // counter and button shifted up together; offset -41 keeps the
+            // 24pt gap between them intact while moving the pair higher.
             counterText
                 .padding(.top, 16)
+                .offset(y: -41)
 
             viewAllButton
                 .padding(.top, 24)
                 .padding(.bottom, 32)
+                .offset(y: -41)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.white)
@@ -40,13 +45,17 @@ struct FilmRollDetailView: View {
                 }
             }
         }
+        .fullScreenCover(isPresented: $showingGallery) {
+            FilmRollGalleryView(roll: roll, rollNumber: rollNumber)
+        }
     }
 
     private var titleBlock: some View {
         VStack(spacing: 4) {
             (
                 Text("나의 ").foregroundStyle(.secondary)
-                + Text("\(rollNumber)번째 롤").foregroundStyle(.primary)
+                + Text("\(rollNumber)번째").foregroundStyle(.primary)
+                + Text(" 롤").foregroundStyle(.secondary)
             )
             .font(.pretendard(.bold, size: 28))
             .multilineTextAlignment(.center)
@@ -76,15 +85,21 @@ struct FilmRollDetailView: View {
     }
 
     private var filmStripPlaceholder: some View {
-        FilmStripView(photos: roll.photos)
+        FilmStripView(currentPhotoIndex: $currentPhotoIndex, photos: roll.photos)
     }
 
     private var counterText: some View {
         HStack {
             Spacer()
-            Text("\(currentPhotoIndex + 1) / \(roll.photoCount)")
-                .font(.pretendard(.medium, size: 14))
-                .foregroundStyle(.primary)
+            Group {
+                if currentPhotoIndex == 0 {
+                    Text("스크롤 해보세요 →")
+                } else {
+                    Text("\(currentPhotoIndex + 1) / \(roll.photoCount)")
+                }
+            }
+            .font(.pretendard(.medium, size: 14))
+            .foregroundStyle(Color(hex: "#A1A1AA"))
             Spacer()
         }
     }
@@ -93,7 +108,7 @@ struct FilmRollDetailView: View {
         HStack {
             Spacer()
             Button {
-                // TODO: show all photos grid
+                showingGallery = true
             } label: {
                 Text("전체 필름 한 눈에 보기")
                     .font(.pretendard(.semiBold, size: 16))

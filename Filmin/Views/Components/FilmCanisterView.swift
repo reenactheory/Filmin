@@ -3,6 +3,9 @@ import SwiftUI
 struct FilmCanisterView: View {
     let filmStock: String
     let frameCount: Int
+    /// Up to 3 photos to render in the backdrop behind the canister.
+    /// Pass image asset/bundle names (empty string → gradient fallback).
+    var backdropPhotos: [String] = []
 
     private let labelColor = Color(hex: "#27272A")
     private let stripTextColor = Color(hex: "#FAFAFA")
@@ -133,20 +136,16 @@ struct FilmCanisterView: View {
     }
 
     private var photoBackdrop: some View {
-        let photoSize = CGSize(width: 72, height: 100)
-        return ZStack {
-            photoPrint(palette: .sky)
-                .frame(width: photoSize.width, height: photoSize.height)
+        ZStack {
+            backdropPrint(photoIndex: 0, palette: .sky)
                 .rotationEffect(.degrees(-14))
                 .offset(x: -28, y: -34)
 
-            photoPrint(palette: .dusk)
-                .frame(width: photoSize.width, height: photoSize.height)
+            backdropPrint(photoIndex: 1, palette: .dusk)
                 .rotationEffect(.degrees(-2))
                 .offset(x: 0, y: -42)
 
-            photoPrint(palette: .shadow)
-                .frame(width: photoSize.width, height: photoSize.height)
+            backdropPrint(photoIndex: 2, palette: .shadow)
                 .rotationEffect(.degrees(12))
                 .offset(x: 30, y: -34)
         }
@@ -154,30 +153,49 @@ struct FilmCanisterView: View {
 
     private enum Palette { case sky, dusk, shadow }
 
-    private func photoPrint(palette: Palette) -> some View {
-        let colors: [Color] = {
-            switch palette {
-            case .sky:
-                return [
-                    Color(red: 0.66, green: 0.78, blue: 0.86),
-                    Color(red: 0.42, green: 0.54, blue: 0.64)
-                ]
-            case .dusk:
-                return [
-                    Color(red: 0.45, green: 0.50, blue: 0.58),
-                    Color(red: 0.25, green: 0.30, blue: 0.36)
-                ]
-            case .shadow:
-                return [
-                    Color(red: 0.28, green: 0.30, blue: 0.34),
-                    Color(red: 0.12, green: 0.14, blue: 0.18)
-                ]
+    /// One backdrop print: if a photo name is provided for this slot,
+    /// render the image cropped to fill; otherwise fall back to a
+    /// gradient. Either way, clip to the print's rounded rect + shadow.
+    @ViewBuilder
+    private func backdropPrint(photoIndex: Int, palette: Palette) -> some View {
+        Group {
+            if photoIndex < backdropPhotos.count,
+               !backdropPhotos[photoIndex].isEmpty,
+               let uiImage = UIImage(named: backdropPhotos[photoIndex]) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                LinearGradient(
+                    colors: paletteColors(palette),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
             }
-        }()
+        }
+        .frame(width: 72, height: 100)
+        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        .shadow(color: .black.opacity(0.22), radius: 8, x: 0, y: 4)
+    }
 
-        return RoundedRectangle(cornerRadius: 4, style: .continuous)
-            .fill(LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom))
-            .shadow(color: .black.opacity(0.22), radius: 8, x: 0, y: 4)
+    private func paletteColors(_ palette: Palette) -> [Color] {
+        switch palette {
+        case .sky:
+            return [
+                Color(red: 0.66, green: 0.78, blue: 0.86),
+                Color(red: 0.42, green: 0.54, blue: 0.64)
+            ]
+        case .dusk:
+            return [
+                Color(red: 0.45, green: 0.50, blue: 0.58),
+                Color(red: 0.25, green: 0.30, blue: 0.36)
+            ]
+        case .shadow:
+            return [
+                Color(red: 0.28, green: 0.30, blue: 0.34),
+                Color(red: 0.12, green: 0.14, blue: 0.18)
+            ]
+        }
     }
 }
 

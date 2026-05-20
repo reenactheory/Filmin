@@ -2,13 +2,19 @@ import SwiftUI
 
 struct TagChip: View {
     let text: String
+    var fontSize: CGFloat = 16
 
     var body: some View {
+        // Padding scales with font size so the chip stays proportional
+        // when smaller variants are used (e.g., on the gallery view).
+        let hPadding = fontSize * (18.0 / 16.0)
+        let vPadding = fontSize * (7.0 / 16.0)
+
         Text(text)
-            .font(.pretendard(.bold, size: 16))
+            .font(.pretendard(.bold, size: fontSize))
             .foregroundStyle(Color(hex: "#27272A"))
-            .padding(.horizontal, 18)
-            .padding(.vertical, 7)
+            .padding(.horizontal, hPadding)
+            .padding(.vertical, vPadding)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Color(.systemGray6))

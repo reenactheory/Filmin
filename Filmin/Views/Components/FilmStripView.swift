@@ -1,76 +1,119 @@
 import SwiftUI
 
-/// Horizontal film strip viewer: shows the canister leader on the left
-/// and the film strip extending right. Each frame of the strip can hold
-/// a photo placeholder. Scrollable horizontally so the user can swipe
-/// between frames.
+/// Horizontal film strip viewer: a fixed canister leader on the left
+/// and a horizontally scrollable strip on the right. The strip's three
+/// frame interiors get photo placeholders.
 struct FilmStripView: View {
+    @Binding var currentPhotoIndex: Int
     let photos: [String]
 
-    private let stripHeight: CGFloat = 280
-    /// Aspect ratio (W:H) of the FilmStrip asset.
-    private let stripAspect: CGFloat = 4556.0 / 1220.0
-    /// Aspect ratio (W:H) of the FilmLeader asset.
-    private let leaderAspect: CGFloat = 786.0 / 1694.0
+    /// Optional mirror used by `.scrollPosition(id:)`. Synced two-way
+    /// with `currentPhotoIndex` so swipes update the counter and
+    /// programmatic index changes scroll the strip.
+    @State private var scrolledIndex: Int? = 0
+
+    private let leaderWidth: CGFloat = 190
+    private let leaderHeight: CGFloat = 380
+    // Strip width derived from the single-frame asset aspect
+    // (1451×1179). Each tile shows ONE photo now.
+    private let stripHeight: CGFloat = 300
+    private var stripWidth: CGFloat { stripHeight * (1451.0 / 1179.0) } // ≈ 381
+    // Photo placeholder size that sits inside each strip frame.
+    // +1 right (347 → 348); height kept 224.
+    private let photoSize = CGSize(width: 348, height: 224)
+    /// Center-position adjustment so each side-growth lands on the
+    /// intended side. x: previous -0.5, +0.5 for right-side growth → 0.
+    /// y kept at +1 for bottom growth.
+    private let photoCenterOffset = CGSize(width: 0, height: 1)
+    /// Horizontal nudge for where the strip starts.
+    private let stripLeadingOffset: CGFloat = 30
 
     var body: some View {
-        let leaderWidth = stripHeight * leaderAspect
-        let stripWidth = stripHeight * stripAspect
-
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 0) {
-                Image("FilmLeader")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: leaderWidth, height: stripHeight)
-
-                Image("FilmStrip")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: stripWidth, height: stripHeight)
-                    .overlay(photoOverlays(stripWidth: stripWidth))
+        // Strip sits BEHIND the leader (z-axis). The strip starts at the
+        // left edge of the container, so its first frames slide under the
+        // leader — giving the impression of film unspooling from the
+        // canister. The leader is laid on top last.
+        ZStack(alignment: .leading) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                stripContent
+                    .padding(.leading, stripLeadingOffset)
             }
+            .frame(height: stripHeight)
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $scrolledIndex, anchor: .center)
+            .onAppear { scrolledIndex = currentPhotoIndex }
+            .onChange(of: scrolledIndex) { _, newValue in
+                if let newValue, newValue != currentPhotoIndex {
+                    currentPhotoIndex = newValue
+                }
+            }
+            .onChange(of: currentPhotoIndex) { _, newValue in
+                if scrolledIndex != newValue {
+                    scrolledIndex = newValue
+                }
+            }
+
+            Image("FilmLeader")
+                .resizable()
+                .scaledToFit()
+                .frame(width: leaderWidth, height: leaderHeight, alignment: .leading)
+                .offset(x: -17)
+                .allowsHitTesting(false)
         }
-        .frame(height: stripHeight)
+        .frame(height: leaderHeight)
     }
 
-    /// Position photo placeholders inside the three frames of the
-    /// FilmStrip asset. Frame interiors (the white windows) sit at
-    /// roughly y = 18%..82% (vertical) and at three horizontal slots
-    /// across the strip.
-    private func photoOverlays(stripWidth: CGFloat) -> some View {
-        let frameTop: CGFloat = 0.18
-        let frameBottom: CGFloat = 0.82
-        let frameHeightPct = frameBottom - frameTop
+    private var stripContent: some View {
+        // Each FilmStrip tile = ONE photo frame. The very LAST tile
+        // swaps in FilmStripEnd (wider, with an extended dark tail) so
+        // the strip reads as the actual end of the roll.
+        let tileCount = max(1, photos.count)
+        let endTileWidth = stripHeight * (1699.0 / 1179.0) // FilmStripEnd aspect
 
-        // Each frame's horizontal interior, expressed as (start, end)
-        // fraction of the strip width.
-        let slots: [(CGFloat, CGFloat)] = [
-            (0.040, 0.310),
-            (0.365, 0.635),
-            (0.690, 0.960)
-        ]
+        return HStack(spacing: 0) {
+            ForEach(0..<tileCount, id: \.self) { tileIdx in
+                let isLast = tileIdx == tileCount - 1
+                let tileWidth = isLast ? endTileWidth : stripWidth
+                let imageName = isLast ? "FilmStripEnd" : "FilmStrip"
 
-        return ZStack(alignment: .topLeading) {
-            ForEach(Array(slots.enumerated()), id: \.offset) { idx, slot in
-                let x = stripWidth * slot.0
-                let w = stripWidth * (slot.1 - slot.0)
-                let y = stripHeight * frameTop
-                let h = stripHeight * frameHeightPct
+                ZStack(alignment: .topLeading) {
+                    // Photo placeholder sits BEHIND the strip image; the
+                    // strip's frame window is transparent so the photo
+                    // shows through, with the black sprocket border
+                    // framing it.
+                    // For the end tile the photo stays at the SAME
+                    // absolute X as a regular tile (i.e., centered on
+                    // the frame portion of the strip, not the wider
+                    // tile center) — so it lines up with the asset's
+                    // frame window.
+                    photoPlaceholder(for: tileIdx)
+                        .frame(width: photoSize.width, height: photoSize.height)
+                        .clipped()
+                        .position(
+                            x: stripWidth / 2 + photoCenterOffset.width,
+                            y: stripHeight / 2 + photoCenterOffset.height
+                        )
 
-                photoPlaceholder(for: idx)
-                    .frame(width: w, height: h)
-                    .offset(x: x, y: y)
+                    Image(imageName)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: tileWidth, height: stripHeight)
+                }
+                .frame(width: tileWidth, height: stripHeight)
+                .id(tileIdx)
             }
         }
-        .frame(width: stripWidth, height: stripHeight, alignment: .topLeading)
+        .scrollTargetLayout()
     }
 
     @ViewBuilder
     private func photoPlaceholder(for index: Int) -> some View {
-        if index < photos.count {
-            // Real photo data would render here. For now, use a
-            // soft gradient placeholder so the frame doesn't read empty.
+        if index < photos.count, !photos[index].isEmpty,
+           let uiImage = UIImage(named: photos[index]) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+        } else if index < photos.count {
             LinearGradient(
                 colors: [
                     Color(red: 0.68, green: 0.80, blue: 0.88),
@@ -86,6 +129,6 @@ struct FilmStripView: View {
 }
 
 #Preview {
-    FilmStripView(photos: Array(repeating: "", count: 17))
+    FilmStripView(currentPhotoIndex: .constant(0), photos: Array(repeating: "", count: 17))
         .background(Color.white)
 }

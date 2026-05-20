@@ -8,7 +8,7 @@ enum RollSortOrder: String, CaseIterable, Identifiable {
 }
 
 struct MyFilmsView: View {
-    @State private var rolls: [FilmRoll] = FilmRoll.samples
+    @Binding var rolls: [FilmRoll]
     @State private var searchText: String = ""
     @State private var sortOrder: RollSortOrder = .recent
 
@@ -54,29 +54,15 @@ struct MyFilmsView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("My Films")
-                    .font(.pretendard(.bold, size: 34))
-                    .foregroundStyle(.primary)
-                Text("총 \(rolls.count)롤")
-                    .font(.pretendard(.regular, size: 16))
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            profileAvatar
+        VStack(alignment: .leading, spacing: 4) {
+            Text("My Films")
+                .font(.pretendard(.bold, size: 34))
+                .foregroundStyle(.primary)
+            Text("총 \(rolls.count)롤")
+                .font(.pretendard(.regular, size: 16))
+                .foregroundStyle(.secondary)
         }
-    }
-
-    private var profileAvatar: some View {
-        Circle()
-            .fill(Color(.systemGray5))
-            .frame(width: 44, height: 44)
-            .overlay(
-                Image(systemName: "person.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(.secondary)
-            )
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var searchBar: some View {
@@ -129,5 +115,5 @@ struct MyFilmsView: View {
 }
 
 #Preview {
-    MyFilmsView()
+    MyFilmsView(rolls: .constant(FilmRoll.samples))
 }

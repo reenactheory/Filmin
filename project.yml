@@ -25,6 +25,7 @@ targets:
           UIColorName: ""
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        NSPhotoLibraryAddUsageDescription: "필름 보기를 사진 라이브러리에 저장합니다."
         UIAppFonts:
           - Pretendard-Regular.otf
           - Pretendard-Medium.otf

@@ -1,47 +1,42 @@
 import SwiftUI
 
+enum AppTab: Hashable {
+    case myFilms, cameras, settings, addRoll
+}
+
 struct RootTabView: View {
+    @State private var selection: AppTab = .myFilms
+    /// Shared stores. Both tabs (films and cameras) and the settings
+    /// view read/write through these so a single source of truth.
+    @State private var rolls: [FilmRoll] = FilmRoll.samples
+    @State private var cameras: [Camera] = Camera.samples
+
     var body: some View {
-        TabView {
-            Tab("내 필름", systemImage: "film.stack") {
-                MyFilmsView()
+        TabView(selection: $selection) {
+            Tab("내 필름", systemImage: "film.stack", value: AppTab.myFilms) {
+                MyFilmsView(rolls: $rolls)
             }
 
-            Tab("카메라", systemImage: "camera") {
-                PlaceholderView(title: "카메라", icon: "camera")
+            Tab("카메라", systemImage: "camera", value: AppTab.cameras) {
+                CameraView(cameras: $cameras)
             }
 
-            Tab("설정", systemImage: "gearshape") {
-                PlaceholderView(title: "설정", icon: "gearshape")
+            Tab("설정", systemImage: "gearshape", value: AppTab.settings) {
+                SettingsView(rolls: $rolls, cameras: $cameras)
             }
 
             // role: .search makes this render as a separate circular
             // glass button on the right of the tab pill (iOS 26 pattern,
             // same as Apple Music's search button).
-            Tab("새 롤", systemImage: "plus", role: .search) {
-                PlaceholderView(title: "새 롤 추가", icon: "plus.circle")
+            Tab("새 롤", systemImage: "plus", value: AppTab.addRoll, role: .search) {
+                AddRollView(
+                    onClose: { selection = .myFilms },
+                    onSave: { roll in rolls.append(roll) },
+                    userCameras: cameras.filter(\.isActive).map(\.name)
+                )
             }
         }
         .tint(.black)
-    }
-}
-
-private struct PlaceholderView: View {
-    let title: String
-    let icon: String
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
-            Text(title)
-                .font(.pretendard(.bold, size: 24))
-                .foregroundStyle(.primary)
-            Text("준비 중")
-                .font(.pretendard(.regular, size: 14))
-                .foregroundStyle(.secondary)
-        }
     }
 }
 

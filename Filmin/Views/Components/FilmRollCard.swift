@@ -5,8 +5,12 @@ struct FilmRollCard: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            FilmCanisterView(filmStock: roll.filmStock, frameCount: roll.photoCount)
-                .frame(maxWidth: .infinity)
+            FilmCanisterView(
+                filmStock: roll.filmStock,
+                frameCount: roll.photoCount,
+                backdropPhotos: roll.backdropPhotos
+            )
+            .frame(maxWidth: .infinity)
 
             HStack(spacing: 6) {
                 Text(roll.title)
