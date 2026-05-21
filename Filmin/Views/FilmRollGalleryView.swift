@@ -195,7 +195,7 @@ struct FilmRollGalleryView: View {
     @ViewBuilder
     private func mediumPhotoImage(for index: Int) -> some View {
         let name = index < roll.photos.count ? roll.photos[index] : ""
-        if !name.isEmpty, let uiImage = UIImage(named: name) {
+        if !name.isEmpty, let uiImage = RollPhotoStore.image(named: name) {
             Image(uiImage: uiImage)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
@@ -282,7 +282,7 @@ struct FilmRollGalleryView: View {
     @ViewBuilder
     private func photoPlaceholder(for index: Int) -> some View {
         let name = index < roll.photos.count ? roll.photos[index] : ""
-        if !name.isEmpty, let uiImage = UIImage(named: name) {
+        if !name.isEmpty, let uiImage = RollPhotoStore.image(named: name) {
             Image(uiImage: uiImage)
                 .resizable()
                 .aspectRatio(contentMode: .fill)

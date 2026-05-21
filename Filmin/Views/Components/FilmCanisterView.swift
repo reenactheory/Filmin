@@ -234,7 +234,7 @@ struct FilmCanisterView: View {
         Group {
             if photoIndex < backdropPhotos.count,
                !backdropPhotos[photoIndex].isEmpty,
-               let uiImage = UIImage(named: backdropPhotos[photoIndex]) {
+               let uiImage = RollPhotoStore.image(named: backdropPhotos[photoIndex]) {
                 Image(uiImage: uiImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)

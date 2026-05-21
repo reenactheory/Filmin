@@ -151,7 +151,7 @@ struct FilmRollDetailView: View {
     private func mediumPhoto(for index: Int) -> some View {
         let name = index < roll.photos.count ? roll.photos[index] : ""
         Group {
-            if !name.isEmpty, let uiImage = UIImage(named: name) {
+            if !name.isEmpty, let uiImage = RollPhotoStore.image(named: name) {
                 Image(uiImage: uiImage)
                     .resizable()
                     .aspectRatio(contentMode: .fit)

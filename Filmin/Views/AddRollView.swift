@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
 
 /// "Add Roll" form. Lets the user pick film stock / format / camera /
 /// date, set the exposure count, and jot a quick note before saving.
@@ -13,6 +14,11 @@ struct AddRollView: View {
     /// show up in the Camera dropdown; passed in from RootTabView.
     var userCameras: [String] = []
 
+    /// UUID generated up front so any photos imported during the form
+    /// session can be written under `Documents/RollPhotos/<newRollID>/`
+    /// and have the saved roll reference them via `<newRollID>/<file>`.
+    @State private var newRollID = UUID()
+
     @State private var filmStock: String = "Portra 400"
     @State private var format: String = "35mm"
     @State private var exposures: Int = 17
@@ -24,8 +30,16 @@ struct AddRollView: View {
     @State private var isShowingCustomFilmStock = false
     @State private var customFilmStock: String = ""
 
-    // Photo picker
+    // Photo sources — both feed into `importedPhotoPaths` once the
+    // bytes are read. Saving the roll writes them to disk under
+    // newRollID's folder via RollPhotoStore.
     @State private var pickedPhotoItems: [PhotosPickerItem] = []
+    @State private var isShowingFileImporter = false
+    /// Relative paths (`<rollID>/<filename>`) of photos already saved
+    /// to disk for this new roll. The Save button reads this directly.
+    @State private var importedPhotoPaths: [String] = []
+    @State private var isImporting = false
+    @State private var importErrorMessage: String?
 
     private let maxNotes = 100
 
@@ -282,35 +296,213 @@ struct AddRollView: View {
 
     // MARK: - Add Image
 
+    /// Two-button stack: Photos picker (gallery) + Files picker.
+    /// Both append into `importedPhotoPaths` so the order users see
+    /// reflects the order they imported.
+    @ViewBuilder
     private var addImageButton: some View {
-        PhotosPicker(
-            selection: $pickedPhotoItems,
-            maxSelectionCount: 99,
-            matching: .images
-        ) {
-            HStack(spacing: 10) {
-                Image(systemName: "photo.badge.plus")
-                    .font(.system(size: 18, weight: .medium))
-                Text(pickedPhotoItems.isEmpty
-                     ? "이미지 추가"
-                     : "\(pickedPhotoItems.count)장 선택됨")
-                    .font(.pretendard(.semiBold, size: 16))
-                Spacer()
-                if !pickedPhotoItems.isEmpty {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .medium))
+        VStack(spacing: 10) {
+            PhotosPicker(
+                selection: $pickedPhotoItems,
+                maxSelectionCount: 99,
+                matching: .images
+            ) {
+                photoSourceRow(
+                    icon: "photo.badge.plus",
+                    label: "갤러리에서 추가"
+                )
+            }
+            .onChange(of: pickedPhotoItems) { _, newItems in
+                guard !newItems.isEmpty else { return }
+                Task { await importPhotosFromPicker(newItems) }
+            }
+
+            Button {
+                isShowingFileImporter = true
+            } label: {
+                photoSourceRow(
+                    icon: "folder.badge.plus",
+                    label: "파일에서 불러오기"
+                )
+            }
+            .buttonStyle(.plain)
+            .fileImporter(
+                isPresented: $isShowingFileImporter,
+                allowedContentTypes: [.image, .folder],
+                allowsMultipleSelection: true
+            ) { result in
+                handleFileImport(result)
+            }
+
+            if !importedPhotoPaths.isEmpty {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("\(importedPhotoPaths.count)장의 사진 추가됨")
+                        .font(.pretendard(.medium, size: 14))
                         .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("초기화") {
+                        clearImportedPhotos()
+                    }
+                    .font(.pretendard(.medium, size: 14))
+                    .foregroundStyle(Color(hex: "#A1A1AA"))
+                }
+                .padding(.top, 2)
+            }
+
+            if isImporting {
+                HStack(spacing: 8) {
+                    ProgressView().scaleEffect(0.7)
+                    Text("불러오는 중…")
+                        .font(.pretendard(.regular, size: 14))
+                        .foregroundStyle(.secondary)
+                    Spacer()
                 }
             }
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color(.systemGray4), lineWidth: 1)
-            )
         }
+        .alert("불러오기 실패", isPresented: Binding(
+            get: { importErrorMessage != nil },
+            set: { if !$0 { importErrorMessage = nil } }
+        )) {
+            Button("확인", role: .cancel) { }
+        } message: {
+            Text(importErrorMessage ?? "")
+        }
+    }
+
+    private func photoSourceRow(icon: String, label: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .medium))
+            Text(label)
+                .font(.pretendard(.semiBold, size: 16))
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.secondary)
+        }
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color(.systemGray4), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Import Plumbing
+
+    /// PhotosPicker → load each item's data → save via RollPhotoStore →
+    /// append the relative path to `importedPhotoPaths`. Runs on a
+    /// background task so the UI stays responsive for large batches.
+    private func importPhotosFromPicker(_ items: [PhotosPickerItem]) async {
+        await MainActor.run { isImporting = true }
+        defer { Task { @MainActor in isImporting = false } }
+
+        var newPaths: [String] = []
+        for (idx, item) in items.enumerated() {
+            guard let data = try? await item.loadTransferable(type: Data.self) else {
+                continue
+            }
+            let ext = item.supportedContentTypes.first?.preferredFilenameExtension ?? "jpg"
+            let name = "gallery-\(Int(Date().timeIntervalSince1970))-\(idx).\(ext)"
+            if let path = RollPhotoStore.saveImported(
+                data: data,
+                originalName: name,
+                rollID: newRollID
+            ) {
+                newPaths.append(path)
+            }
+        }
+        await MainActor.run {
+            importedPhotoPaths.append(contentsOf: newPaths)
+            pickedPhotoItems = []
+        }
+    }
+
+    /// fileImporter → flatten file/folder URLs into image URLs → save
+    /// each to disk in document order. Folder selections enumerate
+    /// their contents (one level deep) for any image-typed files.
+    private func handleFileImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .failure(let error):
+            importErrorMessage = error.localizedDescription
+        case .success(let urls):
+            Task.detached(priority: .userInitiated) {
+                await processFileImport(urls: urls)
+            }
+        }
+    }
+
+    private func processFileImport(urls: [URL]) async {
+        await MainActor.run { isImporting = true }
+        defer { Task { @MainActor in isImporting = false } }
+
+        let imageURLs = expandToImageURLs(urls)
+        var newPaths: [String] = []
+        for url in imageURLs {
+            let didStart = url.startAccessingSecurityScopedResource()
+            defer { if didStart { url.stopAccessingSecurityScopedResource() } }
+            guard let data = try? Data(contentsOf: url) else { continue }
+            let original = url.lastPathComponent
+            if let path = RollPhotoStore.saveImported(
+                data: data,
+                originalName: original,
+                rollID: newRollID
+            ) {
+                newPaths.append(path)
+            }
+        }
+        await MainActor.run {
+            importedPhotoPaths.append(contentsOf: newPaths)
+        }
+    }
+
+    /// For folder URLs, enumerate one level deep for image files.
+    /// For file URLs, pass through. Preserves the input ordering and
+    /// sorts folder contents alphabetically (scanners typically number
+    /// frames so this matches shoot order).
+    private func expandToImageURLs(_ urls: [URL]) -> [URL] {
+        var out: [URL] = []
+        for url in urls {
+            let didStart = url.startAccessingSecurityScopedResource()
+            defer { if didStart { url.stopAccessingSecurityScopedResource() } }
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else {
+                continue
+            }
+            if isDir.boolValue {
+                let contents = (try? FileManager.default.contentsOfDirectory(
+                    at: url,
+                    includingPropertiesForKeys: nil,
+                    options: [.skipsHiddenFiles]
+                )) ?? []
+                let images = contents
+                    .filter { isLikelyImage($0) }
+                    .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+                out.append(contentsOf: images)
+            } else if isLikelyImage(url) {
+                out.append(url)
+            }
+        }
+        return out
+    }
+
+    private func isLikelyImage(_ url: URL) -> Bool {
+        let imageExtensions: Set<String> = [
+            "jpg", "jpeg", "png", "heic", "heif", "tif", "tiff", "webp"
+        ]
+        return imageExtensions.contains(url.pathExtension.lowercased())
+    }
+
+    private func clearImportedPhotos() {
+        // Wipe the on-disk folder so we don't orphan files when the
+        // user changes their mind before saving.
+        RollPhotoStore.deleteAll(rollID: newRollID)
+        importedPhotoPaths = []
+        pickedPhotoItems = []
     }
 
     // MARK: - Notes
@@ -363,12 +555,15 @@ struct AddRollView: View {
 
     private var saveButton: some View {
         Button {
-            // If the user attached photos, those drive `photos`/count;
-            // otherwise we reserve `exposures`-many empty slots.
-            let photos: [String] = pickedPhotoItems.isEmpty
+            // If the user actually imported photos, those drive both
+            // the `photos` array contents and its count. Otherwise we
+            // reserve `exposures`-many empty placeholder slots so the
+            // canister still shows the right frame count.
+            let photos: [String] = importedPhotoPaths.isEmpty
                 ? Array(repeating: "", count: exposures)
-                : Array(repeating: "", count: pickedPhotoItems.count)
+                : importedPhotoPaths
             let roll = FilmRoll(
+                id: newRollID,
                 title: "새 롤",
                 filmStock: filmStock,
                 camera: camera,
