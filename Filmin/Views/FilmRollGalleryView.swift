@@ -84,9 +84,18 @@ struct FilmRollGalleryView: View {
         }
     }
 
-    // MARK: - Strip Grid
+    // MARK: - Grid
 
+    @ViewBuilder
     private var stripGrid: some View {
+        if roll.format == "120" {
+            mediumGrid(includesSaveButton: true, cellPadding: 5)
+        } else {
+            standardStripGrid
+        }
+    }
+
+    private var standardStripGrid: some View {
         let totalPhotos = roll.photoCount
         let rowCount = Int(ceil(Double(totalPhotos) / Double(photosPerRow)))
 
@@ -98,6 +107,102 @@ struct FilmRollGalleryView: View {
                     includesSaveButton: true
                 )
             }
+        }
+    }
+
+    // MARK: - Medium (120) Grid
+
+    /// 120 layout: photos sit on a black "contact sheet" — but only the
+    /// cells that actually contain a photo wear black. Save-button and
+    /// empty cells stay transparent so the surrounding canvas (white)
+    /// shows through, matching how 35mm's per-tile FilmStrip only paints
+    /// where there's film.
+    ///
+    /// Every cell is a Color.clear-based fixed-size container with
+    /// `maxWidth: .infinity`. Because every cell has the same (zero)
+    /// intrinsic content, HStack divides width perfectly equally — the
+    /// last row's photo lines up with the photos above it.
+    private func mediumGrid(includesSaveButton: Bool, cellPadding: CGFloat) -> some View {
+        let mediumPerRow = 3
+        let totalPhotos = roll.photoCount
+        let rowCount = Int(ceil(Double(totalPhotos) / Double(mediumPerRow)))
+        let lastIdx = totalPhotos - 1
+        let lastRowFull = includesSaveButton && totalPhotos % mediumPerRow == 0
+        // Negative spacing equal to cellPadding collapses adjacent rows/
+        // columns so the visible black gap between photos is `cellPadding`
+        // (only the upper/left cell's padding shows), not doubled.
+        let collapse = -cellPadding
+
+        return VStack(spacing: collapse) {
+            ForEach(0..<rowCount, id: \.self) { rowIdx in
+                let baseIdx = rowIdx * mediumPerRow
+                let rowContainsLast = baseIdx <= lastIdx && lastIdx < baseIdx + mediumPerRow
+
+                HStack(spacing: collapse) {
+                    ForEach(0..<mediumPerRow, id: \.self) { colIdx in
+                        let photoIdx = baseIdx + colIdx
+                        let isPhoto = photoIdx < totalPhotos
+                        let isSaveSlot = rowContainsLast
+                            && includesSaveButton
+                            && photoIdx == totalPhotos
+                        mediumCell(
+                            photoIdx: isPhoto ? photoIdx : nil,
+                            isSaveButton: isSaveSlot,
+                            cellPadding: cellPadding
+                        )
+                    }
+                }
+            }
+            if lastRowFull {
+                HStack(spacing: collapse) {
+                    mediumCell(photoIdx: nil, isSaveButton: true, cellPadding: cellPadding)
+                    mediumCell(photoIdx: nil, isSaveButton: false, cellPadding: cellPadding)
+                    mediumCell(photoIdx: nil, isSaveButton: false, cellPadding: cellPadding)
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+
+    /// One cell in the medium grid. Always a perfect square (so every
+    /// row is the exact same height — the black borders between photos
+    /// match up cleanly). Black background only when it holds a photo.
+    @ViewBuilder
+    private func mediumCell(photoIdx: Int?, isSaveButton: Bool, cellPadding: CGFloat) -> some View {
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .aspectRatio(1, contentMode: .fit)
+            .background(photoIdx != nil ? Color.black : Color.clear)
+            .overlay {
+                if let photoIdx {
+                    mediumPhotoImage(for: photoIdx)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(cellPadding)
+                } else if isSaveButton {
+                    HStack {
+                        saveButton
+                            .padding(.leading, 14)
+                        Spacer()
+                    }
+                }
+            }
+    }
+
+    /// Plain medium photo image. Uses `.fill` + `.clipped()` so that every
+    /// photo fills its (square) cell uniformly — keeping the black borders
+    /// between photos a consistent thickness across all rows even when the
+    /// source images have slightly different aspect ratios.
+    @ViewBuilder
+    private func mediumPhotoImage(for index: Int) -> some View {
+        let name = index < roll.photos.count ? roll.photos[index] : ""
+        if !name.isEmpty, let uiImage = UIImage(named: name) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .clipped()
+        } else {
+            Rectangle()
+                .fill(Color(.systemGray3))
         }
     }
 
@@ -229,9 +334,6 @@ struct FilmRollGalleryView: View {
     /// chips run at scaled-up font sizes so they read at full canvas
     /// resolution, not at on-screen size.
     private var exportContent: some View {
-        let totalPhotos = roll.photoCount
-        let rowCount = Int(ceil(Double(totalPhotos) / Double(photosPerRow)))
-
         return VStack(spacing: 32) {
             // Title — scaled ~2.5× from on-screen size
             VStack(spacing: 8) {
@@ -261,14 +363,22 @@ struct FilmRollGalleryView: View {
             }
             .padding(.horizontal, 48)
 
-            // Photo grid
-            VStack(spacing: 24) {
-                ForEach(0..<rowCount, id: \.self) { rowIdx in
-                    stripRow(
-                        rowIdx: rowIdx,
-                        totalPhotos: totalPhotos,
-                        includesSaveButton: false
-                    )
+            // Photo grid — different for 120 (medium) vs 35mm
+            Group {
+                if roll.format == "120" {
+                    mediumGrid(includesSaveButton: false, cellPadding: 15)
+                } else {
+                    let totalPhotos = roll.photoCount
+                    let rowCount = Int(ceil(Double(totalPhotos) / Double(photosPerRow)))
+                    VStack(spacing: 24) {
+                        ForEach(0..<rowCount, id: \.self) { rowIdx in
+                            stripRow(
+                                rowIdx: rowIdx,
+                                totalPhotos: totalPhotos,
+                                includesSaveButton: false
+                            )
+                        }
+                    }
                 }
             }
             .padding(.top, 16)

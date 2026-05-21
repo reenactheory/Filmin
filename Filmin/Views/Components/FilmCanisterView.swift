@@ -3,6 +3,9 @@ import SwiftUI
 struct FilmCanisterView: View {
     let filmStock: String
     let frameCount: Int
+    /// Format string — "120" renders the medium-format canister,
+    /// anything else falls back to the 35mm canister.
+    var format: String = "35mm"
     /// Up to 3 photos to render in the backdrop behind the canister.
     /// Pass image asset/bundle names (empty string → gradient fallback).
     var backdropPhotos: [String] = []
@@ -11,11 +14,64 @@ struct FilmCanisterView: View {
     private let stripTextColor = Color(hex: "#FAFAFA")
 
     var body: some View {
+        if format == "120" {
+            mediumFormatBody
+        } else {
+            smallFormatBody
+        }
+    }
+
+    private var smallFormatBody: some View {
         ZStack {
             photoBackdrop
             canister
         }
         .frame(width: 160, height: 180)
+    }
+
+    // MARK: - Medium format (120)
+
+    private var mediumFormatBody: some View {
+        ZStack {
+            photoBackdrop
+            mediumCanister
+        }
+        .frame(width: 160, height: 180)
+    }
+
+    private var mediumCanister: some View {
+        // Medium-format canister fills nearly its whole image vertically,
+        // whereas the 35mm one has more padding inside its image. To make
+        // the two visually match the same body height, render the medium
+        // smaller than the 35mm's 175pt.
+        Image("FilmCanisterMedium")
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(height: 145)
+            .overlay(mediumLabelOverlay)
+            .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 3)
+    }
+
+    /// Film name centered on the white body of the 120 canister.
+    /// Uses chunked() so long names like "Lomochrome Metropolis"
+    /// break into "Lomo / chrome / Metro / polis" across many short
+    /// lines instead of overflowing.
+    private var mediumLabelOverlay: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+            let chunks = Self.chunked(filmStock: filmStock)
+            let text = chunks.joined(separator: "\n")
+
+            Text(text)
+                .font(.pretendard(.bold, size: 10))
+                .foregroundStyle(labelColor)
+                .multilineTextAlignment(.center)
+                .lineLimit(chunks.count)
+                .minimumScaleFactor(0.6)
+                .frame(width: w * 0.78)
+                .position(x: w / 2, y: h * 0.45)
+        }
     }
 
     private static let canisterWidth: CGFloat = 120
@@ -112,11 +168,28 @@ struct FilmCanisterView: View {
         return LabelLayout(brand: brandParts, suffix: suffix)
     }
 
-    /// All-caps brand words that don't have a camelCase boundary;
-    /// add entries as more film stocks are introduced.
+    /// Brand words that don't have a camelCase boundary or are just
+    /// too long to render on a single line — split them manually.
+    /// Add entries as more film stocks are introduced.
     private static let knownWordSplits: [String: [String]] = [
-        "KODACOLOR": ["KODA", "COLOR"]
+        "KODACOLOR": ["KODA", "COLOR"],
+        "Lomochrome": ["Lomo", "chrome"],
+        "Metropolis": ["Metro", "polis"]
     ]
+
+    /// All chunks for the filmStock string, flattened — splits each
+    /// space-separated word using known splits or camelCase, then
+    /// returns the joined sequence. Used by the medium-format label
+    /// to lay out a long name like "Lomochrome Metropolis" across
+    /// several short lines.
+    static func chunked(filmStock: String) -> [String] {
+        filmStock
+            .split(separator: " ")
+            .map(String.init)
+            .flatMap { word in
+                Self.knownWordSplits[word] ?? Self.splitCamelCase(word)
+            }
+    }
 
     private static func splitCamelCase(_ s: String) -> [String] {
         var result: [String] = []

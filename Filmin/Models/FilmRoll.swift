@@ -118,7 +118,35 @@ extension FilmRoll {
               photos: Array(repeating: "", count: 36),
               brand: "Kodak",
               location: "엘리카메라에서",
-              developedAt: dateFromString("2024-12-05"))
+              developedAt: dateFromString("2024-12-05")),
+        .init(title: "양양 캠핑", filmStock: "Portra 400", camera: "Hasselblad 500CM",
+              photos: Array(repeating: "", count: 12),
+              brand: "Kodak",
+              format: "120",
+              location: "동네 사진관에서",
+              developedAt: dateFromString("2024-09-10")),
+        .init(title: "춘천 호반", filmStock: "Lomochrome Metropolis",
+              camera: "Hasselblad 500CM",
+              photos: Array(repeating: "", count: 12),
+              brand: "Lomography",
+              format: "120",
+              location: "동네 사진관에서",
+              developedAt: dateFromString("2024-07-22")),
+        .init(title: "북한산 가을", filmStock: "Ektar 100",
+              camera: "Hasselblad 500CM",
+              photos: ektar100MediumPhotos,
+              brand: "Kodak",
+              format: "120",
+              location: "동네 사진관에서",
+              developedAt: dateFromString("2024-11-04"))
+    ]
+
+    /// 13 bundled scans from "김재연2 엑타100 중형".
+    private static let ektar100MediumPhotos: [String] = [
+        "30360001.JPG", "30360002.JPG", "30360003.JPG", "30360004.JPG",
+        "30360005.JPG", "30360006.JPG", "30360007.JPG", "30360008.JPG",
+        "30360009.JPG", "30360010.JPG", "30360011.JPG", "30360012.JPG",
+        "30360013.JPG"
     ]
 
     private static func dateFromString(_ s: String) -> Date? {

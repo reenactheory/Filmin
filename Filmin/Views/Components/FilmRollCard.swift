@@ -8,6 +8,7 @@ struct FilmRollCard: View {
             FilmCanisterView(
                 filmStock: roll.filmStock,
                 frameCount: roll.photoCount,
+                format: roll.format,
                 backdropPhotos: roll.backdropPhotos
             )
             .frame(maxWidth: .infinity)

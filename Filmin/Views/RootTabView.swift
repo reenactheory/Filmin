@@ -9,7 +9,10 @@ struct RootTabView: View {
     /// Shared stores. Both tabs (films and cameras) and the settings
     /// view read/write through these so a single source of truth.
     @State private var rolls: [FilmRoll] = FilmRoll.samples
-    @State private var cameras: [Camera] = Camera.samples
+    /// Cameras are persisted to disk via `CameraStore` so the user's
+    /// added/edited cameras (and uploaded photos) survive app restarts.
+    /// First launch falls back to `Camera.samples` when no file exists.
+    @State private var cameras: [Camera] = CameraStore.load() ?? Camera.samples
 
     var body: some View {
         TabView(selection: $selection) {
@@ -37,6 +40,11 @@ struct RootTabView: View {
             }
         }
         .tint(.black)
+        // Write to disk on every mutation. Cheap because the file is
+        // small (a few cameras + their photo Data, if any).
+        .onChange(of: cameras) { _, newValue in
+            CameraStore.save(newValue)
+        }
     }
 }
 

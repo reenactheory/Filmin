@@ -134,6 +134,13 @@ extension Camera {
             brand: "Leica",
             format: "35mm",
             purchaseDate: dateFromString("2021-03-10")
+        ),
+        .init(
+            name: "Hasselblad 500CM",
+            brand: "Hasselblad",
+            format: "120",
+            purchaseDate: dateFromString("2022-06-18"),
+            notes: "중형 첫 입문. 무겁지만 결과물 좋음."
         )
     ]
 
