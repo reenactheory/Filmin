@@ -88,89 +88,9 @@ struct SeededGenerator: RandomNumberGenerator {
 }
 
 extension FilmRoll {
-    static let samples: [FilmRoll] = [
-        .init(title: "Jeju", filmStock: "Portra 400", camera: "Leica R3",
-              photos: Array(repeating: "", count: 17),
-              brand: "Kodak",
-              location: "엘리카메라에서",
-              developedAt: dateFromString("2025-03-15")),
-        .init(title: "김재연 #2", filmStock: "UltraMax 400", camera: "Leica R3",
-              photos: ultraMax400Roll2Photos,
-              brand: "Kodak",
-              location: "엘리카메라에서",
-              developedAt: dateFromString("2025-04-12")),
-        .init(title: "한강 테스트롤", filmStock: "ProImage 100", camera: "Leica AF-C1",
-              photos: Array(repeating: "", count: 35),
-              brand: "Kodak",
-              location: "엘리카메라에서",
-              developedAt: dateFromString("2025-02-20")),
-        .init(title: "홍콩 & 삿포로", filmStock: "KODACOLOR 200", camera: "Leica M6",
-              photos: Array(repeating: "", count: 37),
-              brand: "Kodak",
-              location: "엘리카메라에서",
-              developedAt: dateFromString("2025-04-15")),
-        .init(title: "도쿄 산책", filmStock: "Portra 800", camera: "Leica M6",
-              photos: Array(repeating: "", count: 24),
-              brand: "Kodak",
-              location: "엘리카메라에서",
-              developedAt: dateFromString("2025-01-20")),
-        .init(title: "교토 가을", filmStock: "Ektar 100", camera: "Leica R3",
-              photos: Array(repeating: "", count: 36),
-              brand: "Kodak",
-              location: "엘리카메라에서",
-              developedAt: dateFromString("2024-12-05")),
-        .init(title: "양양 캠핑", filmStock: "Portra 400", camera: "Hasselblad 500CM",
-              photos: Array(repeating: "", count: 12),
-              brand: "Kodak",
-              format: "120",
-              location: "동네 사진관에서",
-              developedAt: dateFromString("2024-09-10")),
-        .init(title: "춘천 호반", filmStock: "Lomochrome Metropolis",
-              camera: "Hasselblad 500CM",
-              photos: Array(repeating: "", count: 12),
-              brand: "Lomography",
-              format: "120",
-              location: "동네 사진관에서",
-              developedAt: dateFromString("2024-07-22")),
-        .init(title: "북한산 가을", filmStock: "Ektar 100",
-              camera: "Hasselblad 500CM",
-              photos: ektar100MediumPhotos,
-              brand: "Kodak",
-              format: "120",
-              location: "동네 사진관에서",
-              developedAt: dateFromString("2024-11-04"))
-    ]
-
-    /// 13 bundled scans from "김재연2 엑타100 중형".
-    private static let ektar100MediumPhotos: [String] = [
-        "30360001.JPG", "30360002.JPG", "30360003.JPG", "30360004.JPG",
-        "30360005.JPG", "30360006.JPG", "30360007.JPG", "30360008.JPG",
-        "30360009.JPG", "30360010.JPG", "30360011.JPG", "30360012.JPG",
-        "30360013.JPG"
-    ]
-
-    private static func dateFromString(_ s: String) -> Date? {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        return f.date(from: s)
-    }
-
-    /// Bundled photos for the "김재연 울트라맥스400 2" sample roll.
-    /// Ordered frame 1 → frame 36 (oldest to newest exposure).
-    /// Files live in `Filmin/Resources/SampleRollPhotos/`.
-    /// All 38 developed scans from the "김재연 울트라맥스400 2" roll,
-    /// in the order they came out of the scanner (file order).
-    /// `photoCount` therefore reflects how many photos were
-    /// actually developed, not the film's frame capacity.
-    private static let ultraMax400Roll2Photos: [String] = [
-        "0001_###.jpg", "0002_E.jpg",
-        "0003_36.jpg", "0004_35.jpg", "0005_34.jpg",
-        "0006_33.jpg", "0007_32.jpg", "0008_31.jpg", "0009_30.jpg", "0010_29.jpg",
-        "0011_28.jpg", "0012_27.jpg", "0013_26.jpg", "0014_25.jpg", "0015_24.jpg",
-        "0016_23.jpg", "0017_22.jpg", "0018_21.jpg", "0019_20.jpg", "0020_19.jpg",
-        "0021_18.jpg", "0022_17.jpg", "0023_16.jpg", "0024_15.jpg", "0025_14.jpg",
-        "0026_13.jpg", "0027_12.jpg", "0028_11.jpg", "0029_10.jpg", "0030_9.jpg",
-        "0031_8.jpg", "0032_7.jpg", "0033_6.jpg", "0034_5.jpg", "0035_4.jpg",
-        "0036_3.jpg", "0037_2.jpg", "0038_1.jpg"
-    ]
+    /// Default rolls shown on first launch. Intentionally empty for
+    /// shipping — mock rolls (if desired) get appended here before
+    /// publishing a build. The previous personal-scan samples have
+    /// been removed so they don't leak into the App Store binary.
+    static let samples: [FilmRoll] = []
 }

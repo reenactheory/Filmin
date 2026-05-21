@@ -109,44 +109,9 @@ extension Camera {
 // MARK: - Samples
 
 extension Camera {
-    static let samples: [Camera] = [
-        .init(
-            name: "Leica M6",
-            brand: "Leica",
-            format: "35mm",
-            purchaseDate: dateFromString("2020-05-14"),
-            notes: "처음으로 산 레인지파인더. 가장 자주 들고 다니는 카메라."
-        ),
-        .init(
-            name: "Leica M3",
-            brand: "Leica",
-            format: "35mm",
-            purchaseDate: dateFromString("2019-09-02")
-        ),
-        .init(
-            name: "Leica R3",
-            brand: "Leica",
-            format: "35mm",
-            purchaseDate: dateFromString("2018-11-22")
-        ),
-        .init(
-            name: "Leica AF-C1",
-            brand: "Leica",
-            format: "35mm",
-            purchaseDate: dateFromString("2021-03-10")
-        ),
-        .init(
-            name: "Hasselblad 500CM",
-            brand: "Hasselblad",
-            format: "120",
-            purchaseDate: dateFromString("2022-06-18"),
-            notes: "중형 첫 입문. 무겁지만 결과물 좋음."
-        )
-    ]
-
-    private static func dateFromString(_ s: String) -> Date? {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        return f.date(from: s)
-    }
+    /// Default cameras shown on first launch. Empty for shipping —
+    /// users add their own via the Cameras tab. The previous samples
+    /// embedded personal purchase dates and notes, so they were
+    /// removed before App Store submission.
+    static let samples: [Camera] = []
 }
