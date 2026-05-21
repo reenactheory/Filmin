@@ -22,15 +22,20 @@ struct FilmRollDetailView: View {
             if roll.format == "120" {
                 // 중형 (120) — strip이 검정 박스라 35mm처럼 strip
                 // 내부로 overlap 시키지 않고 20pt 아래로 내려서 표시.
+                // Pro Max / Plus 사이즈는 화면이 더 높아 빈 공간이
+                // 많아 보이니까 strip부터 통째로 60pt 위로 올림 (100은
+                // 너무 위로 붙어서 적당히 낮춤).
+                let proMaxLift: CGFloat = isProMaxSizedScreen ? -60 : 0
                 Spacer(minLength: 30)
                 mediumPhotoStrip
+                    .offset(y: proMaxLift)
                 counterText
                     .padding(.top, 16)
-                    .offset(y: -10)
+                    .offset(y: -10 + proMaxLift)
                 viewAllButton
                     .padding(.top, 24)
                     .padding(.bottom, 32)
-                    .offset(y: -13)
+                    .offset(y: -13 + proMaxLift)
             } else {
                 // 35mm — 기존 가로 스크롤 필름 스트립 + 카운터 + 버튼.
                 Spacer(minLength: 40)
@@ -196,6 +201,14 @@ struct FilmRollDetailView: View {
             }
             Spacer()
         }
+    }
+
+    /// True on iPhone Pro Max / Plus sized devices (≥420pt wide).
+    /// Used to shift the 120 strip / counter / button up so the layout
+    /// doesn't leave a giant white gap above the strip on tall phones.
+    private var isProMaxSizedScreen: Bool {
+        let width = UIScreen.main.bounds.width
+        return width >= 420
     }
 
     private func formatDate(_ date: Date) -> String {
