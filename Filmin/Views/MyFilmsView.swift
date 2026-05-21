@@ -9,6 +9,9 @@ enum RollSortOrder: String, CaseIterable, Identifiable {
 
 struct MyFilmsView: View {
     @Binding var rolls: [FilmRoll]
+    /// Cameras the user has added — handed through so the edit sheet
+    /// on the detail view can populate its Camera dropdown.
+    var userCameras: [String] = []
     @State private var searchText: String = ""
     @State private var sortOrder: RollSortOrder = .recent
 
@@ -48,7 +51,15 @@ struct MyFilmsView: View {
             .background(Color.white)
             .ignoresSafeArea(.keyboard)
             .navigationDestination(for: FilmRoll.self) { roll in
-                FilmRollDetailView(roll: roll, rollNumber: rollNumber(for: roll))
+                // Re-find by ID and bind into the array so edits in
+                // the detail sheet propagate back to the shared store.
+                if let idx = rolls.firstIndex(where: { $0.id == roll.id }) {
+                    FilmRollDetailView(
+                        roll: $rolls[idx],
+                        rollNumber: rollNumber(for: roll),
+                        userCameras: userCameras
+                    )
+                }
             }
         }
     }

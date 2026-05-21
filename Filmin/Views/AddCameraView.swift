@@ -20,7 +20,7 @@ struct AddCameraView: View {
     @State private var photoData: Data?
     @State private var pickedPhotoItem: PhotosPickerItem?
 
-    private let formatOptions = ["35mm", "120", "4x5", "Instant"]
+    private let formatOptions = ["35mm", "120"]
     private let maxNotes = 100
 
     init(existingCamera: Camera? = nil, onSave: @escaping (Camera) -> Void) {

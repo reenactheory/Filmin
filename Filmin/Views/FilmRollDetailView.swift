@@ -1,13 +1,18 @@
 import SwiftUI
 
 struct FilmRollDetailView: View {
-    let roll: FilmRoll
+    @Binding var roll: FilmRoll
     let rollNumber: Int
+    /// Cameras the user has added — needed so the edit sheet's Camera
+    /// dropdown shows the user's own cameras (mirrors AddRollView in
+    /// the add flow).
+    var userCameras: [String] = []
 
     @Environment(\.dismiss) private var dismiss
     @State private var currentPhotoIndex: Int = 0
     @State private var scrolledMediumIndex: Int? = 0
     @State private var showingGallery: Bool = false
+    @State private var showingEditSheet: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -62,9 +67,24 @@ struct FilmRollDetailView: View {
                         .foregroundStyle(.black)
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showingEditSheet = true } label: {
+                    Text("Edit")
+                        .font(.pretendard(.semiBold, size: 16))
+                        .foregroundStyle(.primary)
+                }
+            }
         }
         .fullScreenCover(isPresented: $showingGallery) {
             FilmRollGalleryView(roll: roll, rollNumber: rollNumber)
+        }
+        .sheet(isPresented: $showingEditSheet) {
+            AddRollView(
+                onClose: { showingEditSheet = false },
+                onSave: { updated in roll = updated },
+                userCameras: userCameras,
+                existingRoll: roll
+            )
         }
     }
 
@@ -220,6 +240,6 @@ struct FilmRollDetailView: View {
 
 #Preview {
     NavigationStack {
-        FilmRollDetailView(roll: FilmRoll.samples[1], rollNumber: 3)
+        FilmRollDetailView(roll: .constant(FilmRoll.samples[0]), rollNumber: 1)
     }
 }

@@ -2,34 +2,38 @@ import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
 
-/// "Add Roll" form. Lets the user pick film stock / format / camera /
-/// date, set the exposure count, and jot a quick note before saving.
+/// "Add Roll" form, dual-purpose: creates a new roll when
+/// `existingRoll` is nil, otherwise edits the passed roll in place.
+/// Same pattern as AddCameraView so the two flows feel consistent.
 struct AddRollView: View {
     /// Called when the user taps X or after Save — host decides what
     /// to do (e.g., switch tabs back to "내 필름").
     let onClose: () -> Void
-    /// Called with the new roll when the user taps Save.
+    /// Called with the new (or updated) roll when the user taps Save.
     var onSave: ((FilmRoll) -> Void)? = nil
     /// Cameras the user has added (from the Cameras tab). Only these
     /// show up in the Camera dropdown; passed in from RootTabView.
     var userCameras: [String] = []
+    /// When non-nil, the form pre-fills from this roll and Save emits
+    /// an updated FilmRoll that preserves the original `id` + `photos`.
+    var existingRoll: FilmRoll? = nil
 
-    /// UUID generated up front so any photos imported during the form
-    /// session can be written under `Documents/RollPhotos/<newRollID>/`
-    /// and have the saved roll reference them via `<newRollID>/<file>`.
-    @State private var newRollID = UUID()
+    private var isEditing: Bool { existingRoll != nil }
 
-    // Film name (e.g., "Portra") and ISO are tracked separately so the
-    // user can pair any name with any speed (push/pull processing or
-    // custom stocks). The combined "Portra 400" string is rebuilt on
-    // the fly for the canister preview and the saved FilmRoll.
-    @State private var filmName: String = "Portra"
-    @State private var filmISO: Int = 400
-    @State private var format: String = "35mm"
-    @State private var exposures: Int = 17
-    @State private var camera: String = "Leica M6"
-    @State private var date: Date = Date()
-    @State private var notes: String = ""
+    /// UUID used to namespace newly-imported photos on disk. For new
+    /// rolls this is freshly generated; in edit mode we re-use the
+    /// existing roll's id so additions land in the same folder.
+    @State private var newRollID: UUID
+
+    @State private var title: String
+    @State private var filmName: String
+    @State private var filmISO: Int
+    @State private var format: String
+    @State private var exposures: Int
+    @State private var camera: String
+    @State private var date: Date
+    @State private var location: String
+    @State private var notes: String
 
     // Custom-input alert for film name "Extra"
     @State private var isShowingCustomFilmName = false
@@ -45,6 +49,48 @@ struct AddRollView: View {
     @State private var importedPhotoPaths: [String] = []
     @State private var isImporting = false
     @State private var importErrorMessage: String?
+
+    init(
+        onClose: @escaping () -> Void,
+        onSave: ((FilmRoll) -> Void)? = nil,
+        userCameras: [String] = [],
+        existingRoll: FilmRoll? = nil
+    ) {
+        self.onClose = onClose
+        self.onSave = onSave
+        self.userCameras = userCameras
+        self.existingRoll = existingRoll
+
+        // Parse "<Name> <ISO>" back out of the saved filmStock string
+        // (e.g., "Portra 400" → name "Portra", ISO 400). Falls back to
+        // the new-roll defaults if no existing roll.
+        let (parsedName, parsedISO) = Self.splitFilmStock(existingRoll?.filmStock)
+
+        _newRollID = State(initialValue: existingRoll?.id ?? UUID())
+        _title = State(initialValue: existingRoll?.title ?? "")
+        _filmName = State(initialValue: parsedName ?? "Portra")
+        _filmISO = State(initialValue: parsedISO ?? 400)
+        _format = State(initialValue: existingRoll?.format ?? "35mm")
+        _exposures = State(initialValue: existingRoll?.photos.count ?? 17)
+        _camera = State(initialValue: existingRoll?.camera ?? "Leica M6")
+        _date = State(initialValue: existingRoll?.developedAt ?? Date())
+        _location = State(initialValue: existingRoll?.location ?? "")
+        _notes = State(initialValue: "")
+    }
+
+    /// "<Name> <ISO>" → ("Name", ISO). If the trailing token isn't an
+    /// integer or the string is nil, the components fall back to nil
+    /// and the caller uses defaults.
+    private static func splitFilmStock(_ stock: String?) -> (String?, Int?) {
+        guard let stock else { return (nil, nil) }
+        let parts = stock.split(separator: " ").map(String.init)
+        guard parts.count >= 2,
+              let iso = Int(parts.last ?? "") else {
+            return (stock, nil)
+        }
+        let name = parts.dropLast().joined(separator: " ")
+        return (name.isEmpty ? nil : name, iso)
+    }
 
     private let maxNotes = 100
 
@@ -71,7 +117,7 @@ struct AddRollView: View {
         "Velvia": 50,
         "Provia": 100
     ]
-    private let formatOptions = ["35mm", "120", "4x5", "Instant"]
+    private let formatOptions = ["35mm", "120"]
 
     /// Combined "<name> <iso>" string used by the canister preview and
     /// the saved FilmRoll's `filmStock` field.
@@ -96,9 +142,13 @@ struct AddRollView: View {
 
                     fields
 
-                    addImageButton
-
-                    notesSection
+                    // Photo import is only offered when creating a new
+                    // roll. Editing the existing roll's photos isn't
+                    // supported in v1 — only metadata changes.
+                    if !isEditing {
+                        addImageButton
+                        notesSection
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
@@ -117,7 +167,7 @@ struct AddRollView: View {
 
     private var header: some View {
         ZStack {
-            Text("Add Roll")
+            Text(isEditing ? "Edit Roll" : "Add Roll")
                 .font(.pretendard(.bold, size: 18))
                 .foregroundStyle(.primary)
 
@@ -156,6 +206,8 @@ struct AddRollView: View {
 
     private var fields: some View {
         VStack(spacing: 0) {
+            titleField
+            divider
             filmNameField
             divider
             isoField
@@ -167,6 +219,8 @@ struct AddRollView: View {
             exposuresField
             divider
             cameraField
+            divider
+            locationField
             divider
             dateField
         }
@@ -265,6 +319,43 @@ struct AddRollView: View {
             Image(systemName: "chevron.down")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 16)
+    }
+
+    /// Title field (e.g. "기타큐슈"). Free-text. Defaults to a
+    /// placeholder if the user leaves it blank.
+    private var titleField: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Title")
+                    .font(.pretendard(.regular, size: 14))
+                    .foregroundStyle(.secondary)
+                TextField("예: 기타큐슈", text: $title)
+                    .font(.pretendard(.semiBold, size: 18))
+                    .foregroundStyle(.primary)
+                    .textFieldStyle(.plain)
+                    .autocorrectionDisabled()
+            }
+            Spacer()
+        }
+        .padding(.vertical, 16)
+    }
+
+    /// Optional location / dev lab note (e.g. "엘리카메라에서").
+    private var locationField: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Location")
+                    .font(.pretendard(.regular, size: 14))
+                    .foregroundStyle(.secondary)
+                TextField("예: 엘리카메라에서", text: $location)
+                    .font(.pretendard(.semiBold, size: 18))
+                    .foregroundStyle(.primary)
+                    .textFieldStyle(.plain)
+                    .autocorrectionDisabled()
+            }
+            Spacer()
         }
         .padding(.vertical, 16)
     }
@@ -606,28 +697,35 @@ struct AddRollView: View {
 
     private var saveButton: some View {
         Button {
-            // If the user actually imported photos, those drive both
-            // the `photos` array contents and its count. Otherwise we
-            // reserve `exposures`-many empty placeholder slots so the
-            // canister still shows the right frame count.
-            let photos: [String] = importedPhotoPaths.isEmpty
-                ? Array(repeating: "", count: exposures)
-                : importedPhotoPaths
+            // Photo array: edit mode keeps the existing roll's photos
+            // untouched (metadata-only edits in v1). Add mode uses any
+            // imported photos, else fills `exposures`-many placeholder
+            // slots so the canister still shows the right frame count.
+            let photos: [String]
+            if let existing = existingRoll {
+                photos = existing.photos
+            } else if !importedPhotoPaths.isEmpty {
+                photos = importedPhotoPaths
+            } else {
+                photos = Array(repeating: "", count: exposures)
+            }
+            let trimmedTitle = title.trimmingCharacters(in: .whitespaces)
+            let trimmedLocation = location.trimmingCharacters(in: .whitespaces)
             let roll = FilmRoll(
                 id: newRollID,
-                title: "새 롤",
+                title: trimmedTitle.isEmpty ? "새 롤" : trimmedTitle,
                 filmStock: filmStock,
                 camera: camera,
                 photos: photos,
                 brand: brandPrefix(for: filmStock),
                 format: format,
-                location: nil,
+                location: trimmedLocation.isEmpty ? nil : trimmedLocation,
                 developedAt: date
             )
             onSave?(roll)
             onClose()
         } label: {
-            Text("Save Roll")
+            Text(isEditing ? "Save Changes" : "Save Roll")
                 .font(.pretendard(.bold, size: 17))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)

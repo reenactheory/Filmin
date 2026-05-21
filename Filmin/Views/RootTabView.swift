@@ -17,7 +17,10 @@ struct RootTabView: View {
     var body: some View {
         TabView(selection: $selection) {
             Tab("내 필름", systemImage: "film.stack", value: AppTab.myFilms) {
-                MyFilmsView(rolls: $rolls)
+                MyFilmsView(
+                    rolls: $rolls,
+                    userCameras: cameras.filter(\.isActive).map(\.name)
+                )
             }
 
             Tab("카메라", systemImage: "camera", value: AppTab.cameras) {
