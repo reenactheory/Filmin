@@ -22,10 +22,11 @@ targets:
       properties:
         CFBundleDisplayName: "필름인"
         UILaunchScreen:
-          UIColorName: ""
+          UIImageName: "LaunchLogo"
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSPhotoLibraryAddUsageDescription: "필름 보기를 사진 라이브러리에 저장합니다."
+        ITSAppUsesNonExemptEncryption: false
         UIAppFonts:
           - Pretendard-Regular.otf
           - Pretendard-Medium.otf
