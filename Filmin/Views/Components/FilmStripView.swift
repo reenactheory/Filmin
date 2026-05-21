@@ -27,40 +27,67 @@ struct FilmStripView: View {
     private let photoCenterOffset = CGSize(width: 0, height: 1)
     /// Horizontal nudge for where the strip starts.
     private let stripLeadingOffset: CGFloat = 30
+    /// Reference screen width that the leader's base offset was tuned
+    /// for (iPhone Pro family: 16 Pro, 17 Pro — all ~393pt).
+    private let referenceScreenWidth: CGFloat = 393
+    /// Base leader offset that produced the centered look on the
+    /// reference device. Wider devices shift further right (see
+    /// `leaderOffset(for:)`) to keep the gap to the centered photo
+    /// visually identical.
+    private let leaderBaseOffset: CGFloat = -17
 
     var body: some View {
         // Strip sits BEHIND the leader (z-axis). The strip starts at the
         // left edge of the container, so its first frames slide under the
         // leader — giving the impression of film unspooling from the
         // canister. The leader is laid on top last.
-        ZStack(alignment: .leading) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                stripContent
-                    .padding(.leading, stripLeadingOffset)
-            }
-            .frame(height: stripHeight)
-            .scrollTargetBehavior(.viewAligned)
-            .scrollPosition(id: $scrolledIndex, anchor: .center)
-            .onAppear { scrolledIndex = currentPhotoIndex }
-            .onChange(of: scrolledIndex) { _, newValue in
-                if let newValue, newValue != currentPhotoIndex {
-                    currentPhotoIndex = newValue
+        //
+        // Wrapped in a GeometryReader so the leader's horizontal offset
+        // can scale with the actual screen width — `scrollPosition`
+        // already centers the current photo at screenWidth/2 on any
+        // device, but the leader is anchored to leading and wouldn't
+        // otherwise move. Shifting the leader by half the device-width
+        // delta keeps the visual gap between leader and photo identical
+        // across iPhone Pro / Pro Max / Plus sizes.
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    stripContent
+                        .padding(.leading, stripLeadingOffset)
                 }
-            }
-            .onChange(of: currentPhotoIndex) { _, newValue in
-                if scrolledIndex != newValue {
-                    scrolledIndex = newValue
+                .frame(height: stripHeight)
+                .scrollTargetBehavior(.viewAligned)
+                .scrollPosition(id: $scrolledIndex, anchor: .center)
+                .onAppear { scrolledIndex = currentPhotoIndex }
+                .onChange(of: scrolledIndex) { _, newValue in
+                    if let newValue, newValue != currentPhotoIndex {
+                        currentPhotoIndex = newValue
+                    }
                 }
-            }
+                .onChange(of: currentPhotoIndex) { _, newValue in
+                    if scrolledIndex != newValue {
+                        scrolledIndex = newValue
+                    }
+                }
 
-            Image("FilmLeader")
-                .resizable()
-                .scaledToFit()
-                .frame(width: leaderWidth, height: leaderHeight, alignment: .leading)
-                .offset(x: -17)
-                .allowsHitTesting(false)
+                Image("FilmLeader")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: leaderWidth, height: leaderHeight, alignment: .leading)
+                    .offset(x: leaderOffset(for: geo.size.width))
+                    .allowsHitTesting(false)
+            }
         }
         .frame(height: leaderHeight)
+    }
+
+    /// Shift the leader rightward by half of any extra device width
+    /// beyond the reference (iPhone Pro). This preserves the same
+    /// visual distance between the leader's right edge and the
+    /// screen-centered photo across all iPhone sizes.
+    private func leaderOffset(for screenWidth: CGFloat) -> CGFloat {
+        let delta = screenWidth - referenceScreenWidth
+        return leaderBaseOffset + delta / 2
     }
 
     private var stripContent: some View {

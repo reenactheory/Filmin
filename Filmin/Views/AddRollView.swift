@@ -19,16 +19,21 @@ struct AddRollView: View {
     /// and have the saved roll reference them via `<newRollID>/<file>`.
     @State private var newRollID = UUID()
 
-    @State private var filmStock: String = "Portra 400"
+    // Film name (e.g., "Portra") and ISO are tracked separately so the
+    // user can pair any name with any speed (push/pull processing or
+    // custom stocks). The combined "Portra 400" string is rebuilt on
+    // the fly for the canister preview and the saved FilmRoll.
+    @State private var filmName: String = "Portra"
+    @State private var filmISO: Int = 400
     @State private var format: String = "35mm"
     @State private var exposures: Int = 17
     @State private var camera: String = "Leica M6"
     @State private var date: Date = Date()
     @State private var notes: String = ""
 
-    // Custom-input alert for film stock "Extra"
-    @State private var isShowingCustomFilmStock = false
-    @State private var customFilmStock: String = ""
+    // Custom-input alert for film name "Extra"
+    @State private var isShowingCustomFilmName = false
+    @State private var customFilmName: String = ""
 
     // Photo sources — both feed into `importedPhotoPaths` once the
     // bytes are read. Saving the roll writes them to disk under
@@ -43,12 +48,36 @@ struct AddRollView: View {
 
     private let maxNotes = 100
 
-    private let filmStockOptions = [
-        "Portra 400", "Portra 800", "Portra 160",
-        "UltraMax 400", "ProImage 100", "KODACOLOR 200",
-        "Ektar 100", "Tri-X 400", "HP5+", "Velvia 50"
+    private let filmNameOptions = [
+        "Portra", "UltraMax", "ProImage", "KODACOLOR",
+        "Ektar", "Tri-X", "HP5+", "Velvia", "Provia"
+    ]
+    /// Real-world film speeds (ISO/ASA). Covers everything from the
+    /// slow Kodachromes up to pushed Tri-X / Delta 3200.
+    private let isoOptions: [Int] = [
+        25, 50, 64, 100, 125, 160, 200, 400, 800, 1600, 3200, 6400
+    ]
+    /// When the user picks a stock from the list, suggest its native
+    /// speed — they can still override via the ISO picker for push /
+    /// pull workflows.
+    private let nativeISO: [String: Int] = [
+        "Portra": 400,
+        "UltraMax": 400,
+        "ProImage": 100,
+        "KODACOLOR": 200,
+        "Ektar": 100,
+        "Tri-X": 400,
+        "HP5+": 400,
+        "Velvia": 50,
+        "Provia": 100
     ]
     private let formatOptions = ["35mm", "120", "4x5", "Instant"]
+
+    /// Combined "<name> <iso>" string used by the canister preview and
+    /// the saved FilmRoll's `filmStock` field.
+    private var filmStock: String {
+        "\(filmName) \(filmISO)"
+    }
 
     private var dateString: String {
         let f = DateFormatter()
@@ -111,7 +140,8 @@ struct AddRollView: View {
     private var canisterPreview: some View {
         FilmCanisterView(
             filmStock: filmStock,
-            frameCount: exposures
+            frameCount: exposures,
+            format: format
         )
         .frame(maxWidth: .infinity)
         .padding(.top, 40) // nudged down from 30 → 40
@@ -126,7 +156,9 @@ struct AddRollView: View {
 
     private var fields: some View {
         VStack(spacing: 0) {
-            filmStockField
+            filmNameField
+            divider
+            isoField
             divider
             dropdownField(label: "Format", value: format, options: formatOptions) {
                 format = $0
@@ -140,28 +172,47 @@ struct AddRollView: View {
         }
     }
 
-    private var filmStockField: some View {
+    private var filmNameField: some View {
         Menu {
-            ForEach(filmStockOptions, id: \.self) { option in
-                Button(option) { filmStock = option }
+            ForEach(filmNameOptions, id: \.self) { option in
+                Button(option) {
+                    filmName = option
+                    // Auto-suggest the stock's native ISO so the
+                    // common case is one tap; user can still change
+                    // the ISO picker afterwards.
+                    if let suggested = nativeISO[option] {
+                        filmISO = suggested
+                    }
+                }
             }
             Divider()
             Button("Extra (직접 입력)") {
-                customFilmStock = ""
-                isShowingCustomFilmStock = true
+                customFilmName = ""
+                isShowingCustomFilmName = true
             }
         } label: {
-            fieldLabel(label: "Film Stock", value: filmStock)
+            fieldLabel(label: "Film Name", value: filmName)
         }
         .buttonStyle(.plain)
-        .alert("Film Stock 직접 입력", isPresented: $isShowingCustomFilmStock) {
-            TextField("예: Cinestill 800T", text: $customFilmStock)
+        .alert("Film Name 직접 입력", isPresented: $isShowingCustomFilmName) {
+            TextField("예: Cinestill 800T", text: $customFilmName)
             Button("확인") {
-                let trimmed = customFilmStock.trimmingCharacters(in: .whitespaces)
-                if !trimmed.isEmpty { filmStock = trimmed }
+                let trimmed = customFilmName.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty { filmName = trimmed }
             }
             Button("취소", role: .cancel) { }
         }
+    }
+
+    private var isoField: some View {
+        Menu {
+            ForEach(isoOptions, id: \.self) { iso in
+                Button("ISO \(iso)") { filmISO = iso }
+            }
+        } label: {
+            fieldLabel(label: "ISO", value: "ISO \(filmISO)")
+        }
+        .buttonStyle(.plain)
     }
 
     private var cameraField: some View {
