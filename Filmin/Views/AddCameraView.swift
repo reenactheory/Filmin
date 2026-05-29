@@ -8,6 +8,10 @@ struct AddCameraView: View {
     /// If non-nil, the form is in edit mode and saving updates this
     /// camera (preserving its id and retiredDate).
     var existingCamera: Camera?
+    /// Optional close handler. When provided (e.g. the + tab presents
+    /// this as tab content, not a sheet), it's used instead of the
+    /// environment `dismiss` so the host can switch tabs back.
+    var onClose: (() -> Void)?
     var onSave: (Camera) -> Void
 
     @State private var name: String
@@ -23,8 +27,13 @@ struct AddCameraView: View {
     private let formatOptions = ["35mm", "120"]
     private let maxNotes = 100
 
-    init(existingCamera: Camera? = nil, onSave: @escaping (Camera) -> Void) {
+    init(
+        existingCamera: Camera? = nil,
+        onClose: (() -> Void)? = nil,
+        onSave: @escaping (Camera) -> Void
+    ) {
         self.existingCamera = existingCamera
+        self.onClose = onClose
         self.onSave = onSave
         _name = State(initialValue: existingCamera?.name ?? "")
         _brand = State(initialValue: existingCamera?.brand ?? "")
@@ -39,6 +48,12 @@ struct AddCameraView: View {
     private var isEditing: Bool { existingCamera != nil }
     private var headerTitle: String { isEditing ? "Edit Camera" : "Add Camera" }
     private var saveButtonTitle: String { isEditing ? "Update" : "Save Camera" }
+
+    /// Close via the host's handler if given (tab content), else fall
+    /// back to the environment dismiss (sheet presentation).
+    private func close() {
+        if let onClose { onClose() } else { dismiss() }
+    }
 
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
@@ -89,7 +104,7 @@ struct AddCameraView: View {
                 .foregroundStyle(.primary)
 
             HStack {
-                Button { dismiss() } label: {
+                Button { close() } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.black)
@@ -352,7 +367,7 @@ struct AddCameraView: View {
                 photoData: photoData
             )
             onSave(camera)
-            dismiss()
+            close()
         } label: {
             Text(saveButtonTitle)
                 .font(.pretendard(.bold, size: 17))
