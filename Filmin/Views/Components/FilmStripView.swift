@@ -66,7 +66,10 @@ struct FilmStripView: View {
                     .offset(x: -17)
                     .allowsHitTesting(false)
             }
-            .offset(x: proMaxNudge(for: geo.size.width))
+            // Shift the whole composition (leader + film + photos) 5pt
+            // right so a little more film shows on the right edge.
+            // proMaxNudge keeps wider phones from drifting left.
+            .offset(x: proMaxNudge(for: geo.size.width) + 5)
         }
         .frame(height: leaderHeight)
     }
@@ -125,7 +128,10 @@ struct FilmStripView: View {
     @ViewBuilder
     private func photoPlaceholder(for index: Int) -> some View {
         if index < photos.count, !photos[index].isEmpty,
-           let uiImage = RollPhotoStore.thumbnail(named: photos[index], maxPixel: 1200) {
+           let uiImage = RollPhotoStore.thumbnail(named: photos[index], maxPixel: 1200, rotatePortrait: true) {
+            // Portrait shots come back rotated 90° (like developed film),
+            // so every frame is landscape and fills the window cleanly —
+            // no white bars, no subject cropping.
             Image(uiImage: uiImage)
                 .resizable()
                 .aspectRatio(contentMode: .fill)

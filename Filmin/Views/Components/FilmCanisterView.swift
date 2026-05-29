@@ -228,23 +228,17 @@ struct FilmCanisterView: View {
 
     /// One backdrop print: if a photo name is provided for this slot,
     /// render the image cropped to fill; otherwise fall back to a
-    /// gradient. Either way, clip to the print's rounded rect + shadow.
+    /// gradient. The photo loads asynchronously (gradient shows first)
+    /// so the My Films grid doesn't block on launch decoding backdrops.
     @ViewBuilder
     private func backdropPrint(photoIndex: Int, palette: Palette) -> some View {
-        Group {
-            if photoIndex < backdropPhotos.count,
-               !backdropPhotos[photoIndex].isEmpty,
-               let uiImage = RollPhotoStore.thumbnail(named: backdropPhotos[photoIndex], maxPixel: 400) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } else {
-                LinearGradient(
-                    colors: paletteColors(palette),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
+        let name = photoIndex < backdropPhotos.count ? backdropPhotos[photoIndex] : ""
+        AsyncRollImage(name: name, maxPixel: 400, contentMode: .fill) {
+            LinearGradient(
+                colors: paletteColors(palette),
+                startPoint: .top,
+                endPoint: .bottom
+            )
         }
         .frame(width: 72, height: 100)
         .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))

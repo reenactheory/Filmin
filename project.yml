@@ -21,6 +21,8 @@ targets:
       path: Filmin/Info.plist
       properties:
         CFBundleDisplayName: "필름인"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen:
           UIImageName: "LaunchLogo"
         UISupportedInterfaceOrientations:

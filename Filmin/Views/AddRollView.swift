@@ -138,15 +138,20 @@ struct AddRollView: View {
 
             ScrollView {
                 VStack(spacing: 20) {
+                    // Photo import sits at the top: importing first
+                    // auto-fills the exposure count, title, and film
+                    // stock, so the fields below land pre-populated.
+                    // Only offered when creating a new roll (editing is
+                    // metadata-only in v1).
+                    if !isEditing {
+                        addImageButton
+                    }
+
                     canisterPreview
 
                     fields
 
-                    // Photo import is only offered when creating a new
-                    // roll. Editing the existing roll's photos isn't
-                    // supported in v1 — only metadata changes.
                     if !isEditing {
-                        addImageButton
                         notesSection
                     }
                 }
@@ -543,23 +548,42 @@ struct AddRollView: View {
         await MainActor.run { isImporting = true }
         defer { Task { @MainActor in isImporting = false } }
 
-        var newPaths: [String] = []
-        for (idx, item) in items.enumerated() {
-            guard let data = try? await item.loadTransferable(type: Data.self) else {
-                continue
+        // Load + write all picked items concurrently. The slow part is
+        // `loadTransferable` (it may pull the full-res original from
+        // iCloud), so doing them in parallel instead of one-at-a-time
+        // turns N sequential round-trips into one batch. Order is
+        // preserved by tagging each result with its original index.
+        let rollID = newRollID
+        let stamp = Int(Date().timeIntervalSince1970)
+
+        let paths: [String] = await withTaskGroup(
+            of: (Int, String?).self
+        ) { group in
+            for (idx, item) in items.enumerated() {
+                group.addTask {
+                    guard let data = try? await item.loadTransferable(type: Data.self) else {
+                        return (idx, nil)
+                    }
+                    let ext = item.supportedContentTypes.first?
+                        .preferredFilenameExtension ?? "jpg"
+                    let name = "gallery-\(stamp)-\(idx).\(ext)"
+                    let path = RollPhotoStore.saveImported(
+                        data: data,
+                        originalName: name,
+                        rollID: rollID
+                    )
+                    return (idx, path)
+                }
             }
-            let ext = item.supportedContentTypes.first?.preferredFilenameExtension ?? "jpg"
-            let name = "gallery-\(Int(Date().timeIntervalSince1970))-\(idx).\(ext)"
-            if let path = RollPhotoStore.saveImported(
-                data: data,
-                originalName: name,
-                rollID: newRollID
-            ) {
-                newPaths.append(path)
+            var collected: [(Int, String)] = []
+            for await (idx, path) in group {
+                if let path { collected.append((idx, path)) }
             }
+            return collected.sorted { $0.0 < $1.0 }.map(\.1)
         }
+
         await MainActor.run {
-            importedPhotoPaths.append(contentsOf: newPaths)
+            importedPhotoPaths.append(contentsOf: paths)
             pickedPhotoItems = []
             // Exposures auto-track the number of imported photos.
             exposures = importedPhotoPaths.count

@@ -8,6 +8,14 @@ struct FilmRollGalleryView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var showSavedAlert = false
+    /// Photo the user tapped to view full-screen; nil = grid only.
+    @State private var expandedPhoto: ExpandedPhoto?
+
+    /// Identifiable wrapper so a tapped photo index can drive
+    /// `fullScreenCover(item:)`.
+    private struct ExpandedPhoto: Identifiable {
+        let id: Int
+    }
 
     private let photosPerRow = 5
     /// FilmStrip asset aspect (W:H).
@@ -28,6 +36,20 @@ struct FilmRollGalleryView: View {
         } message: {
             Text("사진 라이브러리에 저장되었습니다. 인스타그램 스토리에서 불러올 수 있어요.")
         }
+        .fullScreenCover(item: $expandedPhoto) { photo in
+            PhotoZoomViewer(
+                photos: roll.photos,
+                startIndex: photo.id
+            ) {
+                expandedPhoto = nil
+            }
+        }
+    }
+
+    /// Set the tapped photo as expanded (no-op for empty slots).
+    private func expand(_ index: Int) {
+        guard index < roll.photos.count, !roll.photos[index].isEmpty else { return }
+        expandedPhoto = ExpandedPhoto(id: index)
     }
 
     // MARK: - Header
@@ -178,6 +200,8 @@ struct FilmRollGalleryView: View {
                     mediumPhotoImage(for: photoIdx)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding(cellPadding)
+                        .contentShape(Rectangle())
+                        .onTapGesture { expand(photoIdx) }
                 } else if isSaveButton {
                     HStack {
                         saveButton
@@ -196,9 +220,13 @@ struct FilmRollGalleryView: View {
     private func mediumPhotoImage(for index: Int) -> some View {
         let name = index < roll.photos.count ? roll.photos[index] : ""
         if !name.isEmpty, let uiImage = RollPhotoStore.thumbnail(named: name, maxPixel: 1200) {
+            // Portrait shots show in full (.fit) so they aren't cropped —
+            // they sit centered on the cell's black background. Landscape
+            // / square shots fill the square cell (.fill).
+            let isPortrait = uiImage.size.height > uiImage.size.width
             Image(uiImage: uiImage)
                 .resizable()
-                .aspectRatio(contentMode: .fill)
+                .aspectRatio(contentMode: isPortrait ? .fit : .fill)
                 .clipped()
         } else {
             Rectangle()
@@ -276,13 +304,18 @@ struct FilmRollGalleryView: View {
                     .scaledToFit()
                     .frame(width: w, height: h)
             }
+            .contentShape(Rectangle())
+            .onTapGesture { expand(photoIdx) }
         }
     }
 
     @ViewBuilder
     private func photoPlaceholder(for index: Int) -> some View {
         let name = index < roll.photos.count ? roll.photos[index] : ""
-        if !name.isEmpty, let uiImage = RollPhotoStore.thumbnail(named: name, maxPixel: 1200) {
+        if !name.isEmpty, let uiImage = RollPhotoStore.thumbnail(named: name, maxPixel: 1200, rotatePortrait: true) {
+            // Portrait shots ride sideways (rotated) so the landscape
+            // FilmStrip frame fills with no white bars — same as the
+            // detail-view strip and how real film looks.
             Image(uiImage: uiImage)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
@@ -399,6 +432,70 @@ struct FilmRollGalleryView: View {
         guard let uiImage = renderer.uiImage else { return }
         UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
         showSavedAlert = true
+    }
+}
+
+/// Full-screen photo viewer reached by tapping a photo in the contact
+/// sheet. Full-resolution images on a black backdrop; swipe left/right
+/// to move between frames (paged TabView), tap X to return to the grid.
+private struct PhotoZoomViewer: View {
+    let photos: [String]
+    let startIndex: Int
+    let onClose: () -> Void
+
+    @State private var index: Int
+
+    init(photos: [String], startIndex: Int, onClose: @escaping () -> Void) {
+        self.photos = photos
+        self.startIndex = startIndex
+        self.onClose = onClose
+        _index = State(initialValue: startIndex)
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            TabView(selection: $index) {
+                ForEach(photos.indices, id: \.self) { i in
+                    page(for: photos[i])
+                        .tag(i)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .ignoresSafeArea()
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 40, height: 40)
+                            .background(Circle().fill(.white.opacity(0.18)))
+                    }
+                }
+                Spacer()
+                Text("\(index + 1) / \(photos.count)")
+                    .font(.pretendard(.medium, size: 14))
+                    .foregroundStyle(.white.opacity(0.8))
+                    .padding(.bottom, 40)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 60)
+        }
+    }
+
+    @ViewBuilder
+    private func page(for name: String) -> some View {
+        if !name.isEmpty, let uiImage = RollPhotoStore.image(named: name) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } else {
+            Color.black
+        }
     }
 }
 

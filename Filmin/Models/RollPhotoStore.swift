@@ -50,9 +50,18 @@ enum RollPhotoStore {
     /// the full-resolution bitmap never touches memory. Cached by
     /// name+size. This is what the film strip and contact-sheet grids
     /// should use for smooth scrolling.
-    static func thumbnail(named name: String, maxPixel: CGFloat) -> UIImage? {
+    ///
+    /// When `rotatePortrait` is true, a portrait-orientation photo is
+    /// rotated 90° clockwise so it lies sideways and fills a landscape
+    /// film frame — exactly how a portrait shot appears on developed
+    /// 35mm film (no white bars, no cropping of the subject).
+    static func thumbnail(
+        named name: String,
+        maxPixel: CGFloat,
+        rotatePortrait: Bool = false
+    ) -> UIImage? {
         guard !name.isEmpty else { return nil }
-        let key = "\(name)@\(Int(maxPixel))" as NSString
+        let key = "\(name)@\(Int(maxPixel))\(rotatePortrait ? "r" : "")" as NSString
         if let cached = thumbnailCache.object(forKey: key) {
             return cached
         }
@@ -73,7 +82,10 @@ enum RollPhotoStore {
               ) else {
             return UIImage(contentsOfFile: url.path)
         }
-        let thumb = UIImage(cgImage: cgImage)
+        var thumb = UIImage(cgImage: cgImage)
+        if rotatePortrait, thumb.size.height > thumb.size.width {
+            thumb = thumb.rotated90Clockwise()
+        }
         thumbnailCache.setObject(thumb, forKey: key)
         return thumb
     }
@@ -162,6 +174,23 @@ enum RollPhotoStore {
                 return candidate
             }
             counter += 1
+        }
+    }
+}
+
+private extension UIImage {
+    /// Return a copy rotated 90° clockwise (used to lay portrait shots
+    /// sideways inside a landscape film frame, like developed film).
+    func rotated90Clockwise() -> UIImage {
+        let newSize = CGSize(width: size.height, height: size.width)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = scale
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        return renderer.image { ctx in
+            let cg = ctx.cgContext
+            cg.translateBy(x: newSize.width, y: 0)
+            cg.rotate(by: .pi / 2)
+            draw(in: CGRect(origin: .zero, size: size))
         }
     }
 }
