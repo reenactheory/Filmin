@@ -561,6 +561,8 @@ struct AddRollView: View {
         await MainActor.run {
             importedPhotoPaths.append(contentsOf: newPaths)
             pickedPhotoItems = []
+            // Exposures auto-track the number of imported photos.
+            exposures = importedPhotoPaths.count
         }
     }
 
@@ -582,6 +584,10 @@ struct AddRollView: View {
         await MainActor.run { isImporting = true }
         defer { Task { @MainActor in isImporting = false } }
 
+        // If a folder was selected, remember its name — it feeds the
+        // title suggestion and the film-stock guess below.
+        let folderName = folderNameIfPresent(in: urls)
+
         let imageURLs = expandToImageURLs(urls)
         var newPaths: [String] = []
         for url in imageURLs {
@@ -599,7 +605,80 @@ struct AddRollView: View {
         }
         await MainActor.run {
             importedPhotoPaths.append(contentsOf: newPaths)
+            applyImportMetadata(folderName: folderName)
         }
+    }
+
+    /// Return the name of the first directory URL the user selected, if
+    /// any (used for title + film-stock auto-fill). Individual file
+    /// selections have no folder context, so this returns nil.
+    private func folderNameIfPresent(in urls: [URL]) -> String? {
+        for url in urls {
+            let didStart = url.startAccessingSecurityScopedResource()
+            defer { if didStart { url.stopAccessingSecurityScopedResource() } }
+            var isDir: ObjCBool = false
+            if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir),
+               isDir.boolValue {
+                return url.lastPathComponent
+            }
+        }
+        return nil
+    }
+
+    /// After a file import, auto-fill what we reasonably can:
+    /// - exposures always tracks the imported photo count
+    /// - if a folder was picked and the title is still empty, use the
+    ///   folder name as the suggested title
+    /// - if the folder name contains a recognizable film stock (e.g.
+    ///   "Kodak Portra 400"), pre-select that film name + ISO
+    private func applyImportMetadata(folderName: String?) {
+        exposures = importedPhotoPaths.count
+
+        guard let folderName else { return }
+
+        if title.trimmingCharacters(in: .whitespaces).isEmpty {
+            title = folderName
+        }
+        if let detected = Self.detectFilmStock(from: folderName) {
+            filmName = detected.name
+            if let iso = detected.iso { filmISO = iso }
+        }
+    }
+
+    /// Best-effort film-stock detection from a folder name. Looks for a
+    /// known stock keyword and, if present, the nearest standard ISO
+    /// number. Returns nil when nothing recognizable is found (e.g. a
+    /// plain trip name like "기타큐슈"), leaving the user's selection
+    /// untouched.
+    private static func detectFilmStock(from text: String) -> (name: String, iso: Int?)? {
+        let lower = text.lowercased()
+        let known: [(token: String, name: String)] = [
+            ("portra", "Portra"),
+            ("ultramax", "UltraMax"),
+            ("ultra max", "UltraMax"),
+            ("proimage", "ProImage"),
+            ("pro image", "ProImage"),
+            ("kodacolor", "KODACOLOR"),
+            ("ektar", "Ektar"),
+            ("tri-x", "Tri-X"),
+            ("trix", "Tri-X"),
+            ("hp5", "HP5+"),
+            ("velvia", "Velvia"),
+            ("provia", "Provia")
+        ]
+        guard let match = known.first(where: { lower.contains($0.token) }) else {
+            return nil
+        }
+        return (match.name, detectISO(from: lower))
+    }
+
+    /// Pull a standard film speed out of a string by scanning its
+    /// whole-number tokens (so "Portra 400" → 400, but a frame counter
+    /// like "0036" won't be mistaken for one).
+    private static func detectISO(from text: String) -> Int? {
+        let speeds: Set<Int> = [25, 50, 64, 100, 125, 160, 200, 400, 800, 1600, 3200, 6400]
+        let numbers = text.split { !$0.isNumber }.compactMap { Int($0) }
+        return numbers.first { speeds.contains($0) }
     }
 
     /// For folder URLs, enumerate one level deep for image files.

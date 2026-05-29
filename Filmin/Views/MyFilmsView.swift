@@ -14,6 +14,9 @@ struct MyFilmsView: View {
     var userCameras: [String] = []
     @State private var searchText: String = ""
     @State private var sortOrder: RollSortOrder = .recent
+    /// Roll the user long-pressed to delete; non-nil shows a confirm
+    /// alert before actually removing it.
+    @State private var rollPendingDelete: FilmRoll? = nil
 
     private let columns = [
         GridItem(.flexible(), spacing: 20),
@@ -62,6 +65,29 @@ struct MyFilmsView: View {
                 }
             }
         }
+        .alert(
+            "롤 삭제",
+            isPresented: Binding(
+                get: { rollPendingDelete != nil },
+                set: { if !$0 { rollPendingDelete = nil } }
+            ),
+            presenting: rollPendingDelete
+        ) { roll in
+            Button("삭제", role: .destructive) {
+                delete(roll)
+            }
+            Button("취소", role: .cancel) { }
+        } message: { roll in
+            Text("\(roll.title) 롤을 삭제합니다. 이 작업은 되돌릴 수 없으며 임포트한 사진도 함께 삭제됩니다.")
+        }
+    }
+
+    /// Remove the roll from the shared store and clean up any photos
+    /// it owned in Documents/RollPhotos. Called from the contextMenu's
+    /// confirm alert.
+    private func delete(_ roll: FilmRoll) {
+        RollPhotoStore.deleteAll(rollID: roll.id)
+        rolls.removeAll { $0.id == roll.id }
     }
 
     private var header: some View {
@@ -115,6 +141,13 @@ struct MyFilmsView: View {
                     FilmRollCard(roll: roll)
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    Button(role: .destructive) {
+                        rollPendingDelete = roll
+                    } label: {
+                        Label("삭제", systemImage: "trash")
+                    }
+                }
             }
         }
     }

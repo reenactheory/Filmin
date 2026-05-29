@@ -125,7 +125,7 @@ struct FilmStripView: View {
     @ViewBuilder
     private func photoPlaceholder(for index: Int) -> some View {
         if index < photos.count, !photos[index].isEmpty,
-           let uiImage = RollPhotoStore.image(named: photos[index]) {
+           let uiImage = RollPhotoStore.thumbnail(named: photos[index], maxPixel: 1200) {
             Image(uiImage: uiImage)
                 .resizable()
                 .aspectRatio(contentMode: .fill)

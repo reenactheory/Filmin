@@ -1,4 +1,5 @@
 import UIKit
+import ImageIO
 
 /// Stores photos that the user imports from the Files app (or Photos
 /// picker) so they survive app restarts. Photos are written under
@@ -10,6 +11,12 @@ import UIKit
 /// to the Documents directory (user-imported photos).
 enum RollPhotoStore {
     private static let folderName = "RollPhotos"
+
+    /// Decoded thumbnails keyed by "<name>@<maxPixel>". Lab scans are
+    /// often 20MP+, so re-decoding the full JPEG on every SwiftUI render
+    /// (and during a swipe) hitches badly — caching the downsampled
+    /// result keeps strip scrolling smooth.
+    private static let thumbnailCache = NSCache<NSString, UIImage>()
 
     private static var rootURL: URL {
         let docs = FileManager.default.urls(
@@ -26,14 +33,62 @@ enum RollPhotoStore {
         return url
     }
 
-    /// Resolve a photo name from `FilmRoll.photos` to a UIImage.
-    /// Tries the bundle asset catalog first (sample rolls), then falls
-    /// back to the imported photo at `Documents/RollPhotos/<name>`.
+    /// Resolve a photo name from `FilmRoll.photos` to a full-resolution
+    /// UIImage. Tries the bundle (sample rolls) first, then the
+    /// Documents directory (user-imported photos). Use this only where
+    /// full resolution matters (e.g. the 1080×1920 export render) —
+    /// for on-screen strips/grids prefer `thumbnail(named:maxPixel:)`.
     static func image(named name: String) -> UIImage? {
         guard !name.isEmpty else { return nil }
         if let img = UIImage(named: name) { return img }
         let fileURL = rootURL.appendingPathComponent(name)
         return UIImage(contentsOfFile: fileURL.path)
+    }
+
+    /// Resolve a photo to a downsampled UIImage whose longest side is
+    /// roughly `maxPixel`, decoded straight to that size via ImageIO so
+    /// the full-resolution bitmap never touches memory. Cached by
+    /// name+size. This is what the film strip and contact-sheet grids
+    /// should use for smooth scrolling.
+    static func thumbnail(named name: String, maxPixel: CGFloat) -> UIImage? {
+        guard !name.isEmpty else { return nil }
+        let key = "\(name)@\(Int(maxPixel))" as NSString
+        if let cached = thumbnailCache.object(forKey: key) {
+            return cached
+        }
+        guard let url = fileURL(for: name) else {
+            // Couldn't resolve a file URL (shouldn't happen) — fall back
+            // to the full-resolution loader so the photo still shows.
+            return image(named: name)
+        }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixel
+        ]
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let cgImage = CGImageSourceCreateThumbnailAtIndex(
+                source, 0, options as CFDictionary
+              ) else {
+            return UIImage(contentsOfFile: url.path)
+        }
+        let thumb = UIImage(cgImage: cgImage)
+        thumbnailCache.setObject(thumb, forKey: key)
+        return thumb
+    }
+
+    /// Map a photo name to its on-disk file URL — Documents for imported
+    /// photos ("<rollID>/<file>"), or the flattened bundle resource for
+    /// the bundled sample rolls ("0003_36.jpg").
+    private static func fileURL(for name: String) -> URL? {
+        let docURL = rootURL.appendingPathComponent(name)
+        if FileManager.default.fileExists(atPath: docURL.path) {
+            return docURL
+        }
+        let base = (name as NSString).deletingPathExtension
+        let ext = (name as NSString).pathExtension
+        return Bundle.main.url(forResource: base, withExtension: ext)
     }
 
     /// Save image data for the given roll. Returns the relative path
