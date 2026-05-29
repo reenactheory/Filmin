@@ -4,7 +4,6 @@ import SwiftUI
 /// new one. Only cameras here appear in AddRollView's camera dropdown.
 struct CameraView: View {
     @Binding var cameras: [Camera]
-    @State private var showingAddCamera = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -33,34 +32,20 @@ struct CameraView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingAddCamera) {
-            AddCameraView { camera in
-                cameras.append(camera)
-            }
-        }
     }
 
     // MARK: - Header
 
     private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Cameras")
-                    .font(.pretendard(.bold, size: 34))
-                    .foregroundStyle(.primary)
-                Text("총 \(cameras.count)대")
-                    .font(.pretendard(.regular, size: 16))
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button { showingAddCamera = true } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(Color(.systemGray6)))
-            }
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Cameras")
+                .font(.pretendard(.bold, size: 34))
+                .foregroundStyle(.primary)
+            Text("총 \(cameras.count)대")
+                .font(.pretendard(.regular, size: 16))
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Grid

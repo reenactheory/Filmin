@@ -6,6 +6,10 @@ enum AppTab: Hashable {
 
 struct RootTabView: View {
     @State private var selection: AppTab = .myFilms
+    /// The last "content" tab the user was on (films vs cameras). The
+    /// `+` button adds a roll or a camera depending on this, so the
+    /// action matches the page you came from.
+    @State private var lastContentTab: AppTab = .myFilms
     /// Shared stores. Both tabs (films and cameras) and the settings
     /// view read/write through these so a single source of truth.
     /// Both arrays persist to JSON in Documents on every change so the
@@ -33,16 +37,32 @@ struct RootTabView: View {
 
             // role: .search makes this render as a separate circular
             // glass button on the right of the tab pill (iOS 26 pattern,
-            // same as Apple Music's search button).
-            Tab("새 롤", systemImage: "plus", value: AppTab.addRoll, role: .search) {
-                AddRollView(
-                    onClose: { selection = .myFilms },
-                    onSave: { roll in rolls.append(roll) },
-                    userCameras: cameras.filter(\.isActive).map(\.name)
-                )
+            // same as Apple Music's search button). Its action follows
+            // the last content tab: add a camera from the Cameras page,
+            // otherwise add a roll.
+            Tab("추가", systemImage: "plus", value: AppTab.addRoll, role: .search) {
+                if lastContentTab == .cameras {
+                    AddCameraView(
+                        onClose: { selection = .cameras },
+                        onSave: { camera in cameras.append(camera) }
+                    )
+                } else {
+                    AddRollView(
+                        onClose: { selection = .myFilms },
+                        onSave: { roll in rolls.append(roll) },
+                        userCameras: cameras.filter(\.isActive).map(\.name)
+                    )
+                }
             }
         }
         .tint(.black)
+        // Remember which content tab we came from so the + button can
+        // target the right "add" flow.
+        .onChange(of: selection) { _, newValue in
+            if newValue == .myFilms || newValue == .cameras {
+                lastContentTab = newValue
+            }
+        }
         // Write to disk on every mutation. Cheap because both files
         // are small JSON (cameras include uploaded photoData, rolls
         // currently only hold filename references to bundled photos).
